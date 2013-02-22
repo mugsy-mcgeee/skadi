@@ -10,14 +10,22 @@ def demo_path_for(name):
 def demo_parser_for(fixture):
     return sd.Demo(demo_path_for(fixture))
 
-class RecordsCmds(object):
+class CapturesMessages(object):
     def __init__(self):
-        self.cmds = {}
+        self.captures = {}
 
-    def __call__(self, cmd, obj):
-        if not cmd in self.cmds:
-            self.cmds[cmd] = []
-        self.cmds[cmd].append(obj)
+    def __call__(self, message, obj):
+        if not message in self.captures:
+            self.captures[message] = []
+        self.captures[message].append(obj)
 
-    def recorded_cmds(self):
-        return self.cmds.keys()
+    def recorded_messages(self):
+        return self.captures.keys()
+
+class CapturesFirstMessage(object):
+    def __init__(self):
+        self.capture = None
+
+    def __call__(self, message, obj):
+        if self.capture is None:
+            self.capture = (message, obj)

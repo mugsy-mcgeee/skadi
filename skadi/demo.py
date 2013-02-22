@@ -1,13 +1,12 @@
-from skadi import *
-
 import os, sys, snappy
 
 import skadi.generated.demo_pb2 as demo_pb2
 import skadi.generated.netmessages_pb2 as netmessages_pb2
 
-class Demo(object):
-    Nothing             = 0x0000
-    Everything          = 0xffff
+from skadi import *
+from skadi.dispatcher import Dispatcher
+
+class Demo(Dispatcher):
     Stop                = 1 <<  0
     FileHeader          = 1 <<  1
     FileInfo            = 1 <<  2
@@ -24,7 +23,7 @@ class Demo(object):
     FullPacket          = 1 << 13
     Unhandled           = 1 << 15
 
-    CMD_TO_SPEC = {
+    MESSAGE_TO_SPEC = {
         demo_pb2.DEM_Stop: (Stop, demo_pb2.CDemoStop),
         demo_pb2.DEM_FileHeader: (FileHeader, demo_pb2.CDemoFileHeader),
         demo_pb2.DEM_FileInfo: (FileInfo, demo_pb2.CDemoFileInfo),
@@ -44,12 +43,9 @@ class Demo(object):
     }
 
     def __init__(self, path):
-        self.path      = path
-        self.file      = None
-        self.delegates = []
-
-    def register(self, callback, mask = Everything):
-        self.delegates.append([callback, mask])
+        super(Demo,self).__init__()
+        self.path = path
+        self.file = None
 
     def parse(self):
         self._open()
@@ -75,15 +71,14 @@ class Demo(object):
                 cmd_data = snappy.uncompress(cmd_data)
 
             try:
-                message, pbmsg = Demo.CMD_TO_SPEC[cmd]
+                message, pbmsg = Demo.MESSAGE_TO_SPEC[cmd]
+
+                obj = pbmsg()
+                obj.ParseFromString(cmd_data)
             except KeyError:
-                message, pbmsg = Demo.Unhandled, None
+                message, obj = Dispatcher.Unhandled, None
 
-            obj = pbmsg()
-            obj.ParseFromString(cmd_data)
-
-            expecting = [s[0] for s in self.delegates if (s[-1] & message)]
-            [delegate(message, obj) for delegate in expecting]
+            self.dispatch(message, obj)
 
         self._close()
 
