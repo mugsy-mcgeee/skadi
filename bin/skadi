@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 
+import os
 from optparse import OptionParser
+
+from skadi.core.demo import Demo
+from skadi.cli.delegate.creates_server_entities import CreatesServerEntities
+from skadi.cli.model.entity_tree import EntityClassHierarchy
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -11,4 +16,18 @@ parser.add_option('-S', '--search',
 
 (options, args) = parser.parse_args()
 
-# nothing yet.
+# This is ghetto and only accepts arguments relative to
+# project root, ex. demos/12345678.dem
+pwd  = os.path.dirname(__file__)
+root = os.path.join(pwd, '..')
+
+for arg in args:
+    path   = os.path.join(root, arg)
+    replay = Demo(path)
+
+    creates_server_entities = CreatesServerEntities()
+    replay.register(creates_server_entities, Demo.SendTables)
+    replay.parse()
+
+    server_entity_tree = EntityClassHierarchy(creates_server_entities.server_entities)
+    server_entity_tree.root.debug_by_traversal()

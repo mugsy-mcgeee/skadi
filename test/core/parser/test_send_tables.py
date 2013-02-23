@@ -1,4 +1,4 @@
-from test import demo_parser_for, \
+from test import demo_for, \
                  CapturesFirstMessage, CapturesMessages
 
 import skadi.core.demo as demo
@@ -9,7 +9,7 @@ class TestSendTablesParser(object):
         demo_delegate = CapturesFirstMessage()
         mask          = demo.Demo.SendTables
 
-        demo_parser = demo_parser_for('12345678.dem')
+        demo_parser = demo_for('12345678.dem')
         demo_parser.register(demo_delegate, mask)
         demo_parser.parse()
 

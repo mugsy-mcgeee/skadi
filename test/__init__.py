@@ -1,12 +1,12 @@
 import os, sys
 
-import skadi.core.demo as demo
+from skadi.core.demo import Demo
 
 pwd  = os.path.dirname(__file__)
 root = os.path.join(pwd, '..')
 
-def demo_parser_for(fixture):
-    return demo.Demo(demo_path_for(fixture))
+def demo_for(fixture):
+    return Demo(demo_path_for(fixture))
 
 def demo_path_for(name):
     return os.path.join(root, 'demos', name)
