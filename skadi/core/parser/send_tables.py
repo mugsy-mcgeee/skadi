@@ -1,5 +1,5 @@
-from skadi import *
-from skadi.dispatcher import Dispatcher
+import skadi.core as core
+from skadi.core.dispatcher import Dispatcher
 
 import skadi.generated.netmessages_pb2 as netmessages_pb2
 
@@ -22,8 +22,8 @@ class SendTables(Dispatcher):
             if msg_pos == len(data):
                 break
 
-            msg,      msg_pos = decode_varint(data, msg_pos)
-            msg_size, msg_pos = decode_varint(data, msg_pos)
+            msg,      msg_pos = core.decode_varint(data, msg_pos)
+            msg_size, msg_pos = core.decode_varint(data, msg_pos)
 
             msg_data = data[msg_pos:msg_pos+msg_size]
 

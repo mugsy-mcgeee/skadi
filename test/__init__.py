@@ -1,14 +1,15 @@
 import os, sys
 
-import skadi.demo as sd
+import skadi.core.demo as demo
+
 pwd  = os.path.dirname(__file__)
 root = os.path.join(pwd, '..')
 
+def demo_parser_for(fixture):
+    return demo.Demo(demo_path_for(fixture))
+
 def demo_path_for(name):
     return os.path.join(root, 'demos', name)
-
-def demo_parser_for(fixture):
-    return sd.Demo(demo_path_for(fixture))
 
 class CapturesMessages(object):
     def __init__(self):

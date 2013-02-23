@@ -1,12 +1,13 @@
-from test import *
+from test import demo_parser_for, \
+                 CapturesFirstMessage, CapturesMessages
 
-import skadi.demo as sd
-import skadi.parser.send_tables as spst
+import skadi.core.demo as demo
+import skadi.core.parser.send_tables as pst
 
 class TestSendTablesParser(object):
     def test_parser_fires_all_delegates_by_default(self):
         demo_delegate = CapturesFirstMessage()
-        mask          = sd.Demo.SendTables
+        mask          = demo.Demo.SendTables
 
         demo_parser = demo_parser_for('12345678.dem')
         demo_parser.register(demo_delegate, mask)
@@ -15,12 +16,12 @@ class TestSendTablesParser(object):
         _, obj = demo_delegate.capture
 
         packet_delegate = CapturesMessages()
-        mask            = spst.SendTables.SendTable
+        mask            = pst.SendTables.SendTable
 
-        packet_parser = spst.SendTables(obj)
+        packet_parser = pst.SendTables(obj)
         packet_parser.register(packet_delegate, mask)
         packet_parser.parse()
 
         assert len(packet_delegate.recorded_messages()) == 1
         assert packet_delegate.recorded_messages() == \
-           [spst.SendTables.SendTable]
+           [pst.SendTables.SendTable]

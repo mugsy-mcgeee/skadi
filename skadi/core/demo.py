@@ -3,8 +3,8 @@ import os, sys, snappy
 import skadi.generated.demo_pb2 as demo_pb2
 import skadi.generated.netmessages_pb2 as netmessages_pb2
 
-from skadi import *
-from skadi.dispatcher import Dispatcher
+from skadi.core import decode_varint
+from skadi.core.dispatcher import Dispatcher
 
 class Demo(Dispatcher):
     Stop                = 1 <<  0
