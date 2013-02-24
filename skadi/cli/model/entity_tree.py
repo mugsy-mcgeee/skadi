@@ -29,11 +29,8 @@ class EntityTree(object):
 
 class EntityClassHierarchy(object):
     def __init__(self, entities):
-        self.root     = EntityTree(None)
         self.entities = entities
-        self.rebuild()
-
-    def rebuild(self):
+        self.root     = EntityTree(None)
         for entity in self.entities:
             gen     = (a for a in self.entities if a.name == entity.baseclass)
             lineage = [entity]
