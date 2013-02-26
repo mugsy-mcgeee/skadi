@@ -5,6 +5,7 @@ from optparse import OptionParser
 
 from skadi.core.demo import Demo
 from skadi.cli.delegate.creates_server_entities import CreatesServerEntities
+from skadi.cli.delegate.processes_packets import ProcessesPackets
 from skadi.cli.model.entity_tree import EntityClassHierarchy
 
 usage  = "usage: %prog [options] 12345678.dem ..."
@@ -26,8 +27,11 @@ for arg in args:
     replay = Demo(path)
 
     creates_server_entities = CreatesServerEntities()
+    processes_packets       = ProcessesPackets()
+
     replay.register(creates_server_entities, Demo.SendTables)
+    replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
     server_entity_tree = EntityClassHierarchy(creates_server_entities.server_entities)
-    server_entity_tree.root.debug_by_traversal()
+    # server_entity_tree.root.debug_by_traversal()

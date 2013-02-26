@@ -10,14 +10,24 @@ class EntityTree(object):
         self.parent   = parent
         self.children = []
 
-    def debug_by_traversal(self, depth=0):
-        if self.entity is None:
-            for child in self.children:
-                child.debug_by_traversal(depth=0)
-        else:
-            print "%s+ %s" % ('  ' * depth, self.entity.name)
-            for child in self.children:
-                child.debug_by_traversal(depth=(depth+1))
+#    def debug_by_traversal(self, depth=0):
+#        if self.entity is None:
+#            for child in self.children:
+#                child.debug_by_traversal(depth=0)
+#        else:
+#            print "%s+ %s" % ('  ' * depth, self.entity.name)
+#            for child in self.children:
+#                child.debug_by_traversal(depth=(depth+1))
+
+    def aggregate_properties(self, properties=[]):
+        try:
+            working = self.entity.properties + properties
+        except AttributeError:
+            working = properties
+
+        if self.parent:
+            return self.parent.aggregate_properties(properties=working)
+        return working
 
     def locate_parent(self, entity, depth=0):
         if self.entity is None and entity.baseclass is None:
@@ -57,3 +67,9 @@ class EntityClassHierarchy(object):
 
             child = EntityTree(entity, parent=parent_tree)
             parent_tree.children.append(child)
+
+            aggregate = map(lambda p: (p, p.name, p.origin.name), child.aggregate_properties())
+            print "Properties for %s" % child.entity.name
+            for p, pn, o in aggregate:
+                print "  %s (%s); flags: (%s)" % (pn, o, ','.join(p.named_flags()))
+            print
