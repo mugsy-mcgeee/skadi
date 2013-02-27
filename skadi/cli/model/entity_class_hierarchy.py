@@ -1,4 +1,5 @@
 from random import choice
+from skadi.cli.model.server_entity import Property
 
 class EntityTreeLocated(Exception):
     def __init__(self, entity_tree):
@@ -60,7 +61,23 @@ class EntityClassHierarchy(object):
             parent_tree.children.append(child)
 
             aggregate = map(lambda p: (p, p.name, p.origin.name), child.aggregate_properties())
-            print "Properties for %s" % child.entity.name
-            for p, pn, o in aggregate:
-                print "  %s (%s); flags: (%s)" % (pn, o, ','.join(p.named_flags()))
+            relevant  = [(p, pn, pon) for p, pn, pon in aggregate if p.name != 'baseclass']
+
+            print "Properties of %s:" % entity.name
+            for p, pn, pon in relevant:
+                flags   = bin(p.flags if p.flags else 0)[2:].zfill(20)
+                exclude = True if p.flags & Property.FLAGS['exclude'] else False
+
+                if exclude:
+                    msg = "  EXCLUDE INHERITED ATTR: %s" % (p.name.ljust(32))
+                else:
+                    if p.bits:
+                      elab = ' %i-bit' % p.bits
+                    elif pn != 'baseclass' and p.data_type:
+                      elab = ' %s' % p.data_type
+                    else:
+                      elab = ''
+                    msg = "  %s p=%s; t=%i; f=%s %s (%s)" % (p.name.ljust(32), str(p.priority).rjust(3, ' '), p.type, flags, elab, pon)
+
+                print msg
             print
