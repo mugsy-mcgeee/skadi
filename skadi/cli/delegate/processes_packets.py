@@ -14,7 +14,8 @@ class ProcessesPackets(object):
         parser.parse()
 
         for capture in delegate.captures[Packet.PacketEntities]:
-            print capture.updated_entries
-            out = ''.join(bin(ord(c))[2:].zfill(8) for c in capture.entity_data)
-            print out
-            print
+            # print capture.updated_entries
+            # out = ''.join(bin(ord(c))[2:].zfill(8) for c in capture.entity_data)
+            # print out
+            # print
+            pass

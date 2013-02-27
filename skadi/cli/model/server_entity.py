@@ -38,23 +38,3 @@ class ServerEntity(object):
         self.name       = obj.net_table_name
         self.baseclass  = None if not relevant else relevant[0]
         self.properties = [Property(self, p) for p in obj.props]
-
-        # print "Properties of %s:" % self.name
-        # for p in self.properties:
-        #     if p.bits:
-        #       elab = '; %i-bit' % p.bits
-        #     elif p.name != 'baseclass' and p.data_type:
-        #       elab = '; %s' % p.data_type
-        #     else:
-        #       elab = ''
-
-        #     named_flags = p.named_flags()
-        #     if named_flags:
-        #         flags = '(%s)' % ','.join(p.named_flags())
-        #     else:
-        #         flags = 'NONE'
-
-        #     priority = p.priority if p.priority else ''
-
-        #     print "  %s priority %s; type %i; flags: %s%s" % (p.name.ljust(32), priority, p.type, flags, elab)
-        # print
