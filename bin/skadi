@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 from optparse import OptionParser
 
 from skadi.core.demo import Demo
-from skadi.cli.delegate.creates_server_entities import CreatesServerEntities
+from skadi.cli.delegate.creates_dts import CreatesServerEntities
 from skadi.cli.delegate.processes_packets import ProcessesPackets
-from skadi.cli.model.entity_class_hierarchy import EntityClassHierarchy
+from skadi.cli.model.ent import tree
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -26,12 +28,13 @@ for arg in args:
     path   = os.path.join(root, arg)
     replay = Demo(path)
 
-    creates_server_entities = CreatesServerEntities()
+    creates_dts = CreatesServerEntities()
     processes_packets       = ProcessesPackets()
 
-    replay.register(creates_server_entities, Demo.SendTables)
+    replay.register(creates_dts, Demo.SendTables)
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    class_hierarchy = EntityClassHierarchy(creates_server_entities.server_entities)
-    # ...and that's all I got.
+    tree    = tree.build_with(creates_dts.server_entities)
+    printer = lambda depth, n: print('%s%s' % (depth * '  ', n.dt.name))
+    tree.preorder(printer)

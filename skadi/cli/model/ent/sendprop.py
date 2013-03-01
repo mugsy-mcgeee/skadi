@@ -1,4 +1,4 @@
-class Property(object):
+class Sendprop(object):
     FLAGS = {
         'unsigned'       : 1 <<  0, # unsigned integer
         'coord'          : 1 <<  1, # fp/vector treated as world coord (bit count ignored)
@@ -21,7 +21,6 @@ class Property(object):
 
     def __init__(self, origin, obj):
         self.origin    = origin
-
         self.type      = obj.type
         self.flags     = obj.flags
         self.name      = obj.var_name
@@ -30,12 +29,5 @@ class Property(object):
         self.priority  = obj.priority
 
     def named_flags(self):
-        return [k for (k,v) in Property.FLAGS.items() if self.flags & v]
+        return [k for (k,v) in Sendprop.FLAGS.items() if self.flags & v]
 
-class ServerEntity(object):
-    def __init__(self, obj):
-        relevant = [p.dt_name for p in obj.props if p.var_name == 'baseclass']
-        self.name       = obj.net_table_name
-        self.baseclass  = None if not relevant else relevant[0]
-        self.properties = [Property(self, p) for p in obj.props]
-        self.encoded    = obj.needs_decoder

@@ -1,7 +1,7 @@
 from skadi.core.parser import Parser
 
 from skadi.cli.delegate import RecordsMessages
-from skadi.cli.model.server_entity import ServerEntity
+from skadi.cli.model.ent.dt import DT
 
 class CreatesServerEntities(object):
     def __init__(self):
@@ -15,5 +15,5 @@ class CreatesServerEntities(object):
         parser.parse()
 
         for capture in delegate.captures[Parser.SendTable]:
-            server_entity = ServerEntity(capture)
-            self.server_entities.append(server_entity)
+            dt = DT(capture)
+            self.server_entities.append(dt)
