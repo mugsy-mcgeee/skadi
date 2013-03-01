@@ -1,5 +1,6 @@
+from skadi.core.parser import Parser
+
 from skadi.cli.delegate import RecordsMessages
-from skadi.core.parser.send_tables import SendTables
 from skadi.cli.model.server_entity import ServerEntity
 
 class CreatesServerEntities(object):
@@ -7,12 +8,12 @@ class CreatesServerEntities(object):
         self.server_entities = []
 
     def __call__(self, msg, obj):
-        parser   = SendTables(obj)
+        parser   = Parser(obj)
         delegate = RecordsMessages()
 
         parser.register(delegate) # for everything
         parser.parse()
 
-        for capture in delegate.captures[SendTables.SendTable]:
+        for capture in delegate.captures[Parser.SendTable]:
             server_entity = ServerEntity(capture)
             self.server_entities.append(server_entity)

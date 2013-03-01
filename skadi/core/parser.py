@@ -3,15 +3,21 @@ from skadi.core.dispatcher import Dispatcher
 
 import skadi.generated.netmessages_pb2 as netmessages_pb2
 
-class Packet(Dispatcher):
-    PacketEntities = 1 <<  0
+class Parser(Dispatcher):
+    ClassInfo      = 1 <<  0
+    SendTable      = 1 <<  1
+    PacketEntities = 1 <<  2
+    TempEntities   = 1 <<  3
 
     MESSAGE_TO_SPEC = {
-        netmessages_pb2.svc_PacketEntities: (PacketEntities, netmessages_pb2.CSVCMsg_PacketEntities)
+        netmessages_pb2.svc_ClassInfo:      (ClassInfo,      netmessages_pb2.CSVCMsg_ClassInfo     ),
+        netmessages_pb2.svc_SendTable:      (SendTable,      netmessages_pb2.CSVCMsg_SendTable     ),
+        netmessages_pb2.svc_PacketEntities: (PacketEntities, netmessages_pb2.CSVCMsg_PacketEntities),
+        netmessages_pb2.svc_TempEntities:   (TempEntities,   netmessages_pb2.CSVCMsg_TempEntities  )
     }
 
     def __init__(self, obj):
-        super(Packet,self).__init__()
+        super(Parser,self).__init__()
         self.obj = obj
 
     def parse(self):
@@ -28,7 +34,7 @@ class Packet(Dispatcher):
             msg_data = data[msg_pos:msg_pos+msg_size]
 
             try:
-                message, pbmsg = Packet.MESSAGE_TO_SPEC[msg]
+                message, pbmsg = Parser.MESSAGE_TO_SPEC[msg]
 
                 obj = pbmsg()
                 obj.ParseFromString(msg_data)

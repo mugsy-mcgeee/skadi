@@ -38,3 +38,4 @@ class ServerEntity(object):
         self.name       = obj.net_table_name
         self.baseclass  = None if not relevant else relevant[0]
         self.properties = [Property(self, p) for p in obj.props]
+        self.encoded    = obj.needs_decoder

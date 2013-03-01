@@ -33,4 +33,5 @@ for arg in args:
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    server_entity_tree = EntityClassHierarchy(creates_server_entities.server_entities)
+    class_hierarchy = EntityClassHierarchy(creates_server_entities.server_entities)
+    # ...and that's all I got.
