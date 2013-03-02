@@ -36,28 +36,28 @@ class Node(object):
             child.preorder(callable, depth=depth+1)
 
 class Compares:
-    def __init__(self, dt):
-        self.dt = dt
+    def __init__(self, dt_name):
+        self.dt_name = dt_name
 
     def __call__(self, other):
-        return self.dt.name == other.name
+        return self.dt_name == other.name
 
 class ComparesBaseclass:
-    def __init__(self, dt):
-        self.dt = dt
+    def __init__(self, dt_baseclass):
+        self.dt_baseclass = dt_baseclass
 
     def __call__(self, other):
-        return self.dt.baseclass == other.name
+        return self.dt_baseclass == other.name
 
 class Tree(object):
     def __init__(self, base_entity):
         self.root = Node(base_entity)
 
     def place(self, dt):
-        if self.contains(dt):
+        if self.contains(dt.name):
             return
 
-        parent = self._find(ComparesBaseclass(dt))
+        parent = self._find(ComparesBaseclass(dt.baseclass))
         if parent:
             siblings = parent.children
             gen      = (s for s in siblings if s.dt.name == dt.name)
@@ -71,8 +71,8 @@ class Tree(object):
             node = Node(dt, parent=self.root)
             self.root.children.append(node)
 
-    def contains(self, dt):
-        return self._find(Compares(dt))
+    def contains(self, dt_name):
+        return self._find(Compares(dt_name))
 
     def preorder(self, callable):
         for child in self.root.children:
