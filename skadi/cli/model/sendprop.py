@@ -11,7 +11,7 @@ class Sendprop(object):
         'insidearray'    : 1 <<  8, # prop is inside array ("shouldn't be put in flattened prop list" (?))
         'alwaysproxy'    : 1 <<  9, # set for data table props using a default proxy type
         'changesoften'   : 1 << 10, # set for fields set often so they get a small index in sendtable
-        'classref'       : 1 << 11, # prop is member of a vector
+        'ancestral'      : 1 << 11, # most usually baseclass, and excluded when not
         'collapsible'    : 1 << 12, # set if prop is datatable with zero offset that doesn't change pointer (?)
         'coordmp'        : 1 << 13, # like coord, but for multiplayer games
         'coordmplowprec' : 1 << 14, # like coord, but fractional component gets 3 bits, not five
@@ -21,13 +21,26 @@ class Sendprop(object):
 
     def __init__(self, origin, obj):
         self.origin    = origin
+
         self.type      = obj.type
         self.flags     = obj.flags
         self.name      = obj.var_name
         self.bits      = obj.num_bits
-        self.data_type = obj.dt_name
+        self.dt_name   = obj.dt_name
         self.priority  = obj.priority
 
     def named_flags(self):
         return [k for (k,v) in Sendprop.FLAGS.items() if self.flags & v]
 
+    def is_proxied(self):
+        return self.flags & Sendprop.FLAGS['alwaysproxy']
+
+    def is_baseclass_ref(self):
+        is_ancestral = self.is_ancestral()
+        return is_ancestral and self.type == 6 and self.name == 'baseclass'
+
+    def is_ancestral(self):
+        return self.flags & Sendprop.FLAGS['ancestral']
+
+    def is_excluded(self):
+        return self.flags & Sendprop.FLAGS['exclude']

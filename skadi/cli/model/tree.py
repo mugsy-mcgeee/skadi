@@ -15,8 +15,9 @@ def build_with(dts):
     return tree
 
 class NodeFound(Exception):
-    def __init__(self, match):
+    def __init__(self, match, depth):
         self.match = match
+        self.depth = depth
 
 class Node(object):
     def __init__(self, dt, parent=None):
@@ -24,30 +25,45 @@ class Node(object):
         self.parent   = parent
         self.children = []
 
-    def find(self, callable, depth=0):
-        if callable(self.dt):
-            raise NodeFound(self)
+    def select(self, callable, found, depth=0):
         for child in self.children:
-            child.find(callable, depth=(depth+1))
+            child.select(callable, found, depth=depth+1)
+        if callable(self, depth):
+            found.append(self)
 
-    def preorder(self, callable, depth=0):
-        callable(depth, self)
+    def lineage(self, found=None):
+        if self.parent:
+            found = self.parent.lineage(found=[])
+
+        if self.dt:
+            found.append(self)
+
+        return found
+
+    def find(self, callable, depth=0):
+        if callable(self):
+            raise NodeFound(self, depth)
         for child in self.children:
-            child.preorder(callable, depth=depth+1)
+            child.find(callable, depth+1)
+
+    def traverse(self, callable, depth=0):
+        for child in self.children:
+            child.traverse(callable, depth=depth+1)
+        callable(self, depth)
 
 class Compares:
     def __init__(self, dt_name):
         self.dt_name = dt_name
 
     def __call__(self, other):
-        return self.dt_name == other.name
+        return self.dt_name == other.dt.name
 
 class ComparesBaseclass:
     def __init__(self, dt_baseclass):
         self.dt_baseclass = dt_baseclass
 
     def __call__(self, other):
-        return self.dt_baseclass == other.name
+        return self.dt_baseclass == other.dt.name
 
 class Tree(object):
     def __init__(self, base_entity):
@@ -57,7 +73,7 @@ class Tree(object):
         if self.contains(dt.name):
             return
 
-        parent = self._find(ComparesBaseclass(dt.baseclass))
+        parent = self.find(ComparesBaseclass(dt.baseclass))
         if parent:
             siblings = parent.children
             gen      = (s for s in siblings if s.dt.name == dt.name)
@@ -71,14 +87,22 @@ class Tree(object):
             node = Node(dt, parent=self.root)
             self.root.children.append(node)
 
+        return node
+
     def contains(self, dt_name):
-        return self._find(Compares(dt_name))
+        return self.find(Compares(dt_name))
 
-    def preorder(self, callable):
+    def traverse(self, callable):
         for child in self.root.children:
-            child.preorder(callable)
+            child.traverse(callable)
 
-    def _find(self, callable):
+    def select(self, callback):
+        found = []
+        for child in self.root.children:
+            child.select(callback, found=found)
+        return found
+
+    def find(self, callable):
         found = None
         try:
             for child in self.root.children:
