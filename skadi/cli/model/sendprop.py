@@ -16,6 +16,7 @@ class Sendprop(object):
         'coordmp'        : 1 << 13, # like coord, but for multiplayer games
         'coordmplowprec' : 1 << 14, # like coord, but fractional component gets 3 bits, not five
         'coordmpint'     : 1 << 15, # like coord, but rounded to integral boundaries
+        'bumped'         : 1 << 18, # nudge property up to just under ones with explicit priority
         'UNKNOWN'        : 0xff00
     }
 
@@ -32,15 +33,18 @@ class Sendprop(object):
     def named_flags(self):
         return [k for (k,v) in Sendprop.FLAGS.items() if self.flags & v]
 
-    def is_proxied(self):
-        return self.flags & Sendprop.FLAGS['alwaysproxy']
-
     def is_baseclass_ref(self):
         is_ancestral = self.is_ancestral()
         return is_ancestral and self.type == 6 and self.name == 'baseclass'
 
+    def is_excluded(self):
+        return self.flags & Sendprop.FLAGS['exclude']
+
+    def is_proxied(self):
+        return self.flags & Sendprop.FLAGS['alwaysproxy']
+
     def is_ancestral(self):
         return self.flags & Sendprop.FLAGS['ancestral']
 
-    def is_excluded(self):
-        return self.flags & Sendprop.FLAGS['exclude']
+    def is_bumped(self):
+        return self.flags & Sendprop.FLAGS['bumped']

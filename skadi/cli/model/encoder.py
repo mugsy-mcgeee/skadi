@@ -23,6 +23,9 @@ def amass_sendprops(tree, dt, heap=None):
                 heap.append(s)
 
     heap = sorted(heap, key=lambda s: s.priority)
+    pre  = [s for s in heap if s.priority  < 128]
+    post = [s for s in heap if s.priority == 128]
+    heap = pre + sorted(post, key=lambda s: s.is_bumped(), reverse=True)
 
     return [s for s in heap if (s.name, s.origin.name) not in excl]
 
