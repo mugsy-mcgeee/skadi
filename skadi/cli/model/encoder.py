@@ -1,33 +1,40 @@
 from skadi.cli.model.tree import Tree, Compares
 from skadi.cli.model.sendprop import Sendprop
 
-def amass_sendprops(tree, dt, heap=None):
-    if heap is None:
-        heap = []
+def amass_exclusions(tree, dt):
+    ss         = dt.sendprops
+    exclusions = [(s.name, s.dt_name) for s in ss if s.is_exclusion()]
+    inclusions = [s for s in ss if not s.is_exclusion()]
 
-    excl = [(e.name, e.dt_name) for e in dt.sendprops if e.is_excluded()]
-    incl = [s for s in dt.sendprops if not e.is_excluded()]
+    for s in inclusions:
+        if s.is_ancestral():
+            _dt        = tree.find(Compares(s.dt_name)).dt
+            exclusions = amass_exclusions(tree, _dt) + exclusions
 
-    baseclass = next((e for e in dt.sendprops if e.name == 'baseclass'), None)
-    if baseclass:
-        baseclass_dt = tree.find(Compares(baseclass.dt_name)).dt
-        heap         = amass_sendprops(tree, baseclass_dt, heap=heap)
+    return exclusions
 
-    for s in incl:
-        if s.name != 'baseclass':
-            if s.type == 6 and not s.is_proxied():
-                inline_dt = tree.find(Compares(s.dt_name)).dt
-                subheap   = amass_sendprops(tree, inline_dt)
-                heap     += subheap
-            else:
-                heap.append(s)
+def amass_sendprops(tree, dt, exclusions):
+    ss         = dt.sendprops
+    inclusions = [s for s in dt.sendprops if (s.name, s.origin.name) not in exclusions]
 
-    heap = sorted(heap, key=lambda s: s.priority)
-    pre  = [s for s in heap if s.priority  < 128]
-    post = [s for s in heap if s.priority == 128]
-    heap = pre + sorted(post, key=lambda s: s.is_bumped(), reverse=True)
+    heap = []
+    for s in inclusions:
+        if s.is_ancestral():
+            _dt  = tree.find(Compares(s.dt_name)).dt
+            heap = amass_sendprops(tree, _dt, exclusions) + heap
+        elif not s.is_serveronly():
+            heap.append(s)
 
-    return [s for s in heap if (s.name, s.origin.name) not in excl]
+    return [s for s in heap if (s.name, s.origin.name) not in exclusions]
+
+def order_sendprops(heap):
+    heap  = sorted(heap, key=lambda s: s.priority)
+
+    pre   = [s for s in heap if s.priority  < 128]
+    bump  = [s for s in heap if s.is_bumped()]
+    post  = [s for s in heap if s.priority == 128 and not s.is_bumped()]
+
+    return pre + bump + post
 
 class Encoder(object):
     def __init__(self, sendprops, exclusions):

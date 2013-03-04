@@ -6,7 +6,7 @@ class Sendprop(object):
         'rounddown'      : 1 <<  3, # for fp, limit high value to range minus one bit unit
         'roundup'        : 1 <<  4, # for fp, limit low  value to range minus one bit unit
         'normal'         : 1 <<  5, # vector is treated like a normal (valid only for vectors)
-        'exclude'        : 1 <<  6, # this prop points to another prop to be excluded
+        'exclusion'      : 1 <<  6, # this prop points to another prop to be excluded
         'xyze'           : 1 <<  7, # use XYZ/exponent encoding for vectors
         'insidearray'    : 1 <<  8, # prop is inside array ("shouldn't be put in flattened prop list" (?))
         'alwaysproxy'    : 1 <<  9, # set for data table props using a default proxy type
@@ -17,6 +17,7 @@ class Sendprop(object):
         'coordmplowprec' : 1 << 14, # like coord, but fractional component gets 3 bits, not five
         'coordmpint'     : 1 << 15, # like coord, but rounded to integral boundaries
         'bumped'         : 1 << 18, # nudge property up to just under ones with explicit priority
+        'serveronly'     : 1 << 19, # server doesnt send during updates
         'UNKNOWN'        : 0xff00
     }
 
@@ -37,14 +38,17 @@ class Sendprop(object):
         is_ancestral = self.is_ancestral()
         return is_ancestral and self.type == 6 and self.name == 'baseclass'
 
-    def is_excluded(self):
-        return self.flags & Sendprop.FLAGS['exclude']
+    def is_exclusion(self):
+        return (self.flags & Sendprop.FLAGS['exclusion'])
 
     def is_proxied(self):
-        return self.flags & Sendprop.FLAGS['alwaysproxy']
+        return (self.flags & Sendprop.FLAGS['alwaysproxy'])
 
     def is_ancestral(self):
-        return self.flags & Sendprop.FLAGS['ancestral']
+        return (self.flags & Sendprop.FLAGS['ancestral'])
 
     def is_bumped(self):
-        return self.flags & Sendprop.FLAGS['bumped']
+        return (self.flags & Sendprop.FLAGS['bumped'])
+
+    def is_serveronly(self):
+        return (self.flags & Sendprop.FLAGS['serveronly'])

@@ -34,15 +34,17 @@ for arg in args:
     replay.parse()
 
     tree                   = tree.build_with(creates_dts.dts)
-    nodes_with_encoded_dts = tree.select(lambda node, depth: True) #node.dt.encoded)
+    nodes_with_encoded_dts = tree.select(lambda node, depth: node.dt.encoded)
 
     count = 0
     for node in nodes_with_encoded_dts:
-        print "DT: %s" % node.dt.name
-        e = encoder.amass_sendprops(tree, node.dt)
-        for index, s in enumerate(e):
+        print "Flattened %s" % node.dt.name
+
+        exclusions = encoder.amass_exclusions(tree, node.dt)
+        heap       = encoder.amass_sendprops(tree, node.dt, exclusions)
+        for index, s in enumerate(encoder.order_sendprops(heap)):
             count += 1
-            print "  %i: %s (%s) t=%i; p=%i; f=%s" % (index, s.name, s.origin.name, s.type, s.priority, bin(s.flags)[2:].zfill(20))
+            print "  %i: %s (%s) t=%i; f=%s; b=%i" % (index, s.name, s.origin.name, s.type, bin(s.flags)[2:].zfill(20), s.bits)
 
     print
     print count
