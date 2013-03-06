@@ -36,15 +36,17 @@ for arg in args:
     tree                   = tree.build_with(creates_dts.dts)
     nodes_with_encoded_dts = tree.select(lambda node, depth: node.dt.encoded)
 
-    count = 0
     for node in nodes_with_encoded_dts:
-        print "Flattened %s" % node.dt.name
+        print "{0}".format(node.dt.name)
 
         exclusions = encoder.amass_exclusions(tree, node.dt)
-        heap       = encoder.amass_sendprops(tree, node.dt, exclusions)
-        for index, s in enumerate(encoder.order_sendprops(heap)):
-            count += 1
-            print "  %i: %s (%s) t=%i; f=%s; b=%i" % (index, s.name, s.origin.name, s.type, bin(s.flags)[2:].zfill(20), s.bits)
+        if exclusions:
+            print "  exclusions:"
+            for index, e in enumerate(exclusions):
+                print "    {0}: {1}".format(str(index).ljust(3), '.'.join(e[::-1]))
 
-    print
-    print count
+        heap = encoder.amass_sendprops(tree, node.dt, exclusions)
+        if heap:
+            print "  flattened:"
+            for index, s in enumerate(encoder.order_sendprops(heap)):
+                print "    {0}: {1}".format(str(index).ljust(3), s)

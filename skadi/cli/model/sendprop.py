@@ -1,54 +1,83 @@
-class Sendprop(object):
-    FLAGS = {
-        'unsigned'       : 1 <<  0, # unsigned integer
-        'coord'          : 1 <<  1, # fp/vector treated as world coord (bit count ignored)
-        'noscale'        : 1 <<  2, # for fp, take as-is value
-        'rounddown'      : 1 <<  3, # for fp, limit high value to range minus one bit unit
-        'roundup'        : 1 <<  4, # for fp, limit low  value to range minus one bit unit
-        'normal'         : 1 <<  5, # vector is treated like a normal (valid only for vectors)
-        'exclusion'      : 1 <<  6, # this prop points to another prop to be excluded
-        'xyze'           : 1 <<  7, # use XYZ/exponent encoding for vectors
-        'insidearray'    : 1 <<  8, # prop is inside array ("shouldn't be put in flattened prop list" (?))
-        'alwaysproxy'    : 1 <<  9, # set for data table props using a default proxy type
-        'changesoften'   : 1 << 10, # set for fields set often so they get a small index in sendtable
-        'ancestral'      : 1 << 11, # most usually baseclass, and excluded when not
-        'collapsible'    : 1 << 12, # set if prop is datatable with zero offset that doesn't change pointer (?)
-        'coordmp'        : 1 << 13, # like coord, but for multiplayer games
-        'coordmplowprec' : 1 << 14, # like coord, but fractional component gets 3 bits, not five
-        'coordmpint'     : 1 << 15, # like coord, but rounded to integral boundaries
-        'bumped'         : 1 << 18, # nudge property up to just under ones with explicit priority
-        'serveronly'     : 1 << 19, # server doesnt send during updates
-        'UNKNOWN'        : 0xff00
-    }
 
-    def __init__(self, origin, obj):
-        self.origin    = origin
+def enum(**enums):
+    _enum = type('Enum', (), enums)
+    _enum.__keys__ = enums.keys()
+    return _enum
+
+Flag = enum(
+    UNSIGNED         = ('unsigned'        , 1 <<  0), # unsigned integer
+    COORD            = ('coord'           , 1 <<  1), # float/vec is world coord (ignores bit count)
+    NOSCALE          = ('noscale'         , 1 <<  2), # take float value as is
+    ROUNDDOWN        = ('rounddown'       , 1 <<  3), # limit float high val to (range - 1 bit-unit)
+    ROUNDUP          = ('roundup'         , 1 <<  4), # limit float low  val to (range - 1 bit-unit)
+    NORMAL           = ('normal'          , 1 <<  5), # treat value as normal (valid only for vector)
+    EXCLUDE          = ('exclude'         , 1 <<  6), # this prop indicates exclusion of another
+    XYZE             = ('xyze'            , 1 <<  7), # use "XYZ/Exponent" encoding for vectors (?)
+    INSIDEARRAY      = ('insidearray'     , 1 <<  8), # in array (doesn't go in flat props)
+    PROXYALWAYS      = ('proxyalways'     , 1 <<  9), # always proxy all data to all clients
+    VECTORELEM       = ('vectorelem'      , 1 << 10), # vector
+    COLLAPSIBLE      = ('collapsible'     , 1 << 11), # refers to another datatable with no changes
+    COORDMP          = ('coordmp'         , 1 << 12), # COORD, but special treatment for multiplayer
+    COORDMPLOWPREC   = ('coordmplowprec'  , 1 << 13), # above, but frac gets 3 bits
+    COORDMPINT       = ('coordmpint'      , 1 << 14), # above, but round to int
+    CELLCOORD        = ('cellcoord'       , 1 << 15), # COORD, but non-neg (bits have maxval)
+    CELLCOORDLOWPREC = ('cellcoordlowprec', 1 << 16), # above, but frac gets 3 bits
+    CELLCOORDINT     = ('cellcoordint'    , 1 << 17), # above, but round to int
+    CHANGESOFTEN     = ('changesoften'    , 1 << 18)  # move to top of sendtable for low prop index
+)
+
+Type = enum(
+    INT       = ('int'      , 0),
+    FLOAT     = ('float'    , 1),
+    VECTOR    = ('vector'   , 2),
+    VECTORXY  = ('vectorxy' , 3),
+    STRING    = ('string'   , 4),
+    ARRAY     = ('array'    , 5), # an array of primitives (not datatables)
+    DATATABLE = ('datatable', 6),
+    INT64     = ('int64'    , 7)
+)
+
+class Sendprop(object):
+    def __init__(self, dt, obj):
+        self.origin    = dt
+        self.name      = obj.var_name
 
         self.type      = obj.type
         self.flags     = obj.flags
-        self.name      = obj.var_name
+        self.priority  = obj.priority
         self.bits      = obj.num_bits
         self.dt_name   = obj.dt_name
-        self.priority  = obj.priority
+
+    def __str__(self):
+        origin, name = self.origin.name, self.name
+
+        type     = self.named_type()
+        flags    = ','.join(self.named_flags()) if self.flags else '*'
+        priority = self.priority if self.priority < 128       else '*'
+        bits     = self.bits     if self.bits                 else '*'
+        dt_name  = self.dt_name  if self.dt_name              else '*'
+
+        repr = "<{0}.{1} t:{2} f:{3} p:{4} b:{5}>"
+
+        return repr.format(origin, name, type, flags, priority, bits)
+
+    def named_type(self):
+        k, d = (Type.__keys__, Type.__dict__)
+        gen  = (d[key][0] for key in k if d[key][1] == self.type)
+        return gen.next()
 
     def named_flags(self):
-        return [k for (k,v) in Sendprop.FLAGS.items() if self.flags & v]
+        k, d = (Flag.__keys__, Flag.__dict__)
+        return [d[key][0] for key in k if d[key][1] & self.flags]
 
-    def is_baseclass_ref(self):
-        is_ancestral = self.is_ancestral()
-        return is_ancestral and self.type == 6 and self.name == 'baseclass'
+    def flagged_EXCLUDE(self):
+        return (self.flags & Flag.EXCLUDE[1])
 
-    def is_exclusion(self):
-        return (self.flags & Sendprop.FLAGS['exclusion'])
+    def flagged_ALWAYSPROXY(self):
+        return (self.flags & Flag.PROXYALWAYS[1])
 
-    def is_proxied(self):
-        return (self.flags & Sendprop.FLAGS['alwaysproxy'])
+    def flagged_COLLAPSIBLE(self):
+        return (self.flags & Flag.COLLAPSIBLE[1])
 
-    def is_ancestral(self):
-        return (self.flags & Sendprop.FLAGS['ancestral'])
-
-    def is_bumped(self):
-        return (self.flags & Sendprop.FLAGS['bumped'])
-
-    def is_serveronly(self):
-        return (self.flags & Sendprop.FLAGS['serveronly'])
+    def flagged_CHANGESOFTEN(self):
+        return (self.flags & Flag.CHANGESOFTEN[1])
