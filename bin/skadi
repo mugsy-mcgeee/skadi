@@ -4,9 +4,8 @@ import os
 from optparse import OptionParser
 
 from skadi.core.demo import Demo
-from skadi.cli.delegate.creates_dts import CreatesDTs
-from skadi.cli.delegate.processes_packets import ProcessesPackets
-from skadi.cli.model import tree, encoder
+from skadi.cli.delegate import CreatesDTs, ProcessesPackets
+from skadi.model import registry, decoder
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -33,20 +32,24 @@ for arg in args:
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    tree                   = tree.build_with(creates_dts.dts)
-    nodes_with_encoded_dts = tree.select(lambda node, depth: node.dt.encoded)
+    registry = registry.build_with(creates_dts.dts)
+    dts      = registry.select(lambda dt: dt.encoded)
 
-    for node in nodes_with_encoded_dts:
-        print "{0}".format(node.dt.name)
+    print
+    print "DTI-like Summary:"
+    print "  Send Tables:    {0}".format(len(dts))
+    print "  Send props:     {0}".format(len(registry.sendprops()))
+    print "  Flat props:     TBD"
+    print "  Int props:      {0}".format(len(registry.tInt(dts=dts)))
+    print "  Float props:    {0}".format(len(registry.tFloat(dts=dts)))
+    print "  Vector props:   {0}".format(len(registry.tVector(dts=dts)))
+    print "  VectorXY props: {0}".format(len(registry.tVectorXY(dts=dts)))
+    print "  String props:   {0}".format(len(registry.tString(dts=dts)))
+    print "  Array props:    {0}".format(len(registry.tArray(dts=dts)))
+    print "  Table props:    {0}".format(len(registry.tDataTable(dts=dts)))
+    print "  Exclu props:    {0}".format(len(registry.fExclude(dts=dts)))
 
-        exclusions = encoder.amass_exclusions(tree, node.dt)
-        if exclusions:
-            print "  exclusions:"
-            for index, e in enumerate(exclusions):
-                print "    {0}: {1}".format(str(index).ljust(3), '.'.join(e[::-1]))
+    decoder = decoder.build_with(registry)
 
-        heap = encoder.amass_sendprops(tree, node.dt, exclusions)
-        if heap:
-            print "  flattened:"
-            for index, s in enumerate(encoder.order_sendprops(heap)):
-                print "    {0}: {1}".format(str(index).ljust(3), s)
+    for dt in dts:
+        flatprops = decoder.flatten(dt)

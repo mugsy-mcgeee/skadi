@@ -70,14 +70,38 @@ class Sendprop(object):
         k, d = (Flag.__keys__, Flag.__dict__)
         return [d[key][0] for key in k if d[key][1] & self.flags]
 
-    def flagged_EXCLUDE(self):
+    def tInt(self):
+        return self.type == Type.INT[1]
+
+    def tFloat(self):
+        return self.type == Type.FLOAT[1]
+
+    def tVector(self):
+        return self.type == Type.VECTOR[1]
+
+    def tVectorXY(self):
+        return self.type == Type.VECTORXY[1]
+
+    def tString(self):
+        return self.type == Type.STRING[1]
+
+    def tArray(self):
+        return self.type == Type.ARRAY[1]
+
+    def tDataTable(self):
+        return self.type == Type.DATATABLE[1]
+
+    def tInt64(self):
+        return self.type == Type.INT64[1]
+
+    def fExclude(self):
         return (self.flags & Flag.EXCLUDE[1])
 
-    def flagged_ALWAYSPROXY(self):
+    def fAlwaysProxy(self):
         return (self.flags & Flag.PROXYALWAYS[1])
 
-    def flagged_COLLAPSIBLE(self):
+    def fCollapsible(self):
         return (self.flags & Flag.COLLAPSIBLE[1])
 
-    def flagged_CHANGESOFTEN(self):
+    def fChangesOften(self):
         return (self.flags & Flag.CHANGESOFTEN[1])

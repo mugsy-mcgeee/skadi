@@ -1,4 +1,4 @@
-from skadi.cli.model.sendprop import Sendprop
+from skadi.model.sendprop import Sendprop
 
 class DT(object):
     def __init__(self, obj):
