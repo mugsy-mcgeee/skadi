@@ -6,6 +6,7 @@ from optparse import OptionParser
 from skadi.core.demo import Demo
 from skadi.cli.delegate import CreatesDTs, ProcessesPackets
 from skadi.model import registry, decoder
+from skadi.model.sendprop import Type, Flag
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -21,6 +22,9 @@ parser.add_option('-S', '--search',
 pwd  = os.path.dirname(__file__)
 root = os.path.join(pwd, '..')
 
+def flatten(list):
+    return sum(list, [])
+
 for arg in args:
     path   = os.path.join(root, arg)
     replay = Demo(path)
@@ -32,24 +36,36 @@ for arg in args:
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    registry = registry.build_with(creates_dts.dts)
-    dts      = registry.select(lambda dt: dt.encoded)
+    registry    = registry.build_with(creates_dts.dts)
+    encoded_dts = registry.encoded()
+
+    ss_all       = registry.sendprops(via=encoded_dts)
+    ss_int       = registry.sendprops(via=encoded_dts, t=Type.INT)
+    ss_float     = registry.sendprops(via=encoded_dts, t=Type.FLOAT)
+    ss_vector    = registry.sendprops(via=encoded_dts, t=Type.VECTOR)
+    ss_vectorxy  = registry.sendprops(via=encoded_dts, t=Type.VECTORXY)
+    ss_string    = registry.sendprops(via=encoded_dts, t=Type.STRING)
+    ss_array     = registry.sendprops(via=encoded_dts, t=Type.ARRAY)
+    ss_datatable = registry.sendprops(via=encoded_dts, t=Type.DATATABLE)
+    ss_exclu     = registry.sendprops(via=encoded_dts, f=Flag.EXCLUDE)
 
     print
     print "DTI-like Summary:"
-    print "  Send Tables:    {0}".format(len(dts))
-    print "  Send props:     {0}".format(len(registry.sendprops()))
+    print "  Send Tables:    {0}".format(len(encoded_dts))
+    print "  Send props:     {0}".format(len(ss_all))
     print "  Flat props:     TBD"
-    print "  Int props:      {0}".format(len(registry.tInt(dts=dts)))
-    print "  Float props:    {0}".format(len(registry.tFloat(dts=dts)))
-    print "  Vector props:   {0}".format(len(registry.tVector(dts=dts)))
-    print "  VectorXY props: {0}".format(len(registry.tVectorXY(dts=dts)))
-    print "  String props:   {0}".format(len(registry.tString(dts=dts)))
-    print "  Array props:    {0}".format(len(registry.tArray(dts=dts)))
-    print "  Table props:    {0}".format(len(registry.tDataTable(dts=dts)))
-    print "  Exclu props:    {0}".format(len(registry.fExclude(dts=dts)))
+    print "  Int props:      {0}".format(len(ss_int))
+    print "  Float props:    {0}".format(len(ss_float))
+    print "  Vector props:   {0}".format(len(ss_vector))
+    print "  VectorXY props: {0}".format(len(ss_vectorxy))
+    print "  String props:   {0}".format(len(ss_string))
+    print "  Array props:    {0}".format(len(ss_array))
+    print "  Table props:    {0}".format(len(ss_datatable))
+    print "  Exclu props:    {0}".format(len(ss_exclu))
+    print
 
-    decoder = decoder.build_with(registry)
-
-    for dt in dts:
-        flatprops = decoder.flatten(dt)
+    for dt in encoded_dts:
+        flatprops = registry.flattened(dt)
+        print "flatprops {0}".format(dt.name)
+        for index, s in enumerate(flatprops):
+            print "  {0}: {1}".format(str(index).rjust(3), str(s))

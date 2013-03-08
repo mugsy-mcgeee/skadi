@@ -1,8 +1,11 @@
+from skadi.model.sendprop import Flag, Type
+
 def build_with(dts):
     return Registry(dts)
 
-def dt_sendprops(dts):
-    return sum([dt.sendprops for dt in dts], [])
+class VerifiesEncoded:
+    def __call__(self, other):
+        return other.encoded
 
 class Compares:
     def __init__(self, dt_name):
@@ -15,15 +18,35 @@ class Registry(object):
     def __init__(self, dts):
         self.dts = dts
 
-    def names(self):
-        return [dt.name for dt in self.dts]
+    def encoded(self):
+        return self.select(lambda dt: dt.encoded)
+
+    def not_encoded(self):
+        return self.select(lambda dt: not dt.encoded)
 
     def named(self, dt_name):
         return self.find(Compares(dt_name))
 
-    def sendprops(self):
-        dts = [self.named(name) for name in self.names()]
-        return sum([dt.sendprops for dt in dts], [])
+    def flattened(self, dt, exclusions=None):
+        lineage   = self._lineate(dt)
+        flatprops = []
+
+        if exclusions is None:
+            exclusions = [self._exclusions(_dt) for _dt in lineage]
+            exclusions = sum(exclusions, []) # flatten
+
+        for _dt in lineage:
+            for s in _dt.inclusions():
+                if s not in exclusions:
+                    __dt = self.named(s.dt_name)
+                    if s.type == Type.DATATABLE and __dt not in lineage:
+                        flatprops = self.flattened(__dt, exclusions) + flatprops
+                    elif s.flags ^ Flag.COLLAPSIBLE:
+                        flatprops.append(s)
+
+        flatprops = sorted(flatprops, key=lambda s: s.priority)
+
+        return flatprops
 
     def select(self, fn):
         return [dt for dt in self.dts if fn(dt)]
@@ -32,60 +55,32 @@ class Registry(object):
         gen = (dt for dt in self.dts if fn(dt))
         return next(gen, None)
 
-    def lineage(self, dt):
+    def sendprops(self, via=None, t=None, f=None):
+        if via is None:
+            via = self.dts
+        ss = [dt.sendprops(t=t, f=f) for dt in via]
+        return sum(ss, [])
+
+    def _lineate(self, dt):
         lineage  = [dt]
         ancestor = self.named(dt.baseclass)
 
         while ancestor:
             lineage.append(ancestor)
-            ancestor = self.named(dt.baseclass)
+            ancestor = self.named(ancestor.baseclass)
 
-        return lineage
+        return lineage[::-1]
 
-    def tInt(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tInt() and not s.fExclude(), ss)
+    def _exclusions(self, dt):
+        exclusions = []
 
-    def tFloat(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tFloat() and not s.fExclude(), ss)
+        for s in dt.exclusions():
+            s_name = s.name
+            dt     = self.named(s.dt_name)
+            gen    = (s for s in dt.sendprops() if s.name == s_name)
+            try:
+                exclusions.append(gen.next())
+            except:
+                print "No sendprop for {0}.{1}".format(s.dt_name, s_name)
 
-    def tVector(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tVector() and not s.fExclude(), ss)
-
-    def tVectorXY(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tVectorXY() and not s.fExclude(), ss)
-
-    def tString(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tInt() and not s.fExclude(), ss)
-
-    def tArray(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tArray() and not s.fExclude(), ss)
-
-    def tDataTable(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.tDataTable() and not s.fExclude(), ss)
-
-    def flagged(self, flags, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.flags & flags, ss)
-
-    def fExclude(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.fExclude(), ss)
-
-    def fAlwaysProxy(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.fAlwaysProxy(), ss)
-
-    def fCollapsible(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.FCOLLAPSIBLE(), ss)
-
-    def fChangesOften(self, dts=None):
-        ss = dt_sendprops(dts) if dts else self.sendprops()
-        return filter(lambda s: s.fChangesOften(), ss)
+        return exclusions
