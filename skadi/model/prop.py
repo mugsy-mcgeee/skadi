@@ -41,45 +41,44 @@ Type = enum(
     INT64     = 7
 )
 
-class Sendprop(object):
-    def __init__(self, dt, obj):
-        self.origin    = dt
-        self.name      = obj.var_name
-        self.type      = obj.type
-        self.flags     = obj.flags
-        self.bits      = obj.num_bits
-        self.dt_name   = obj.dt_name
+class Prop(object):
+    def __init__(self, origin, obj):
+        self.origin   = origin
+        self.name     = obj.var_name
+        self.type     = obj.type
+        self.flags    = obj.flags
+        self.elements = obj.num_elements
+        self.bits     = obj.num_bits
+        self.st_name  = obj.dt_name
 
-        if obj.priority == P_DEFAULT and self.fChangesOften():
+        if obj.priority == P_DEFAULT and self.flags & Flag.CHANGESOFTEN:
             self.priority = P_CHANGESOFTEN
         else:
             self.priority = obj.priority
 
     def __str__(self):
-        origin, name = self.origin.name, self.name
+        origin, name = self.origin, self.name
 
-        type     = self.named_type()
-        flags    = ','.join(self.named_flags()) if self.flags else '*'
-        priority = self.priority    if self.priority < 128    else '*'
-        bits     = self.bits        if self.bits              else '*'
-        dt_name  = self.dt_name     if self.dt_name           else '*'
+        type     = self._named_type()
+        flags    = ','.join(self._named_flags()) if self.flags else '*'
+        priority = self.priority if self.priority < 128 else '*'
+        bits     = self.bits     or '*'
+        elements = self.elements or '*'
+        st_name  = self.st_name  or '*'
 
-        repr = "<{0}.{1} t:{2} f:{3} p:{4} b:{5} o={6}>"
+        repr = "<{0}.{1} t:{2} f:{3} p:{4} b:{5} e:{6} o:{7}>"
 
-        return repr.format(origin, name, type, flags, priority, bits, dt_name)
+        return repr.format(origin, name, type, flags, priority, bits, elements, st_name)
 
-    def named_type(self):
+    def _named_type(self):
         for k, v in Type._enums.items():
             if self.type == v:
                 return k.lower()
         return None
 
-    def named_flags(self):
+    def _named_flags(self):
         named_flags = []
         for k, v in Flag._enums.items():
             if self.flags & v:
                 named_flags.append(k.lower())
         return named_flags
-
-    def fChangesOften(self):
-        return self.flags & Flag.CHANGESOFTEN

@@ -4,9 +4,9 @@ import os
 from optparse import OptionParser
 
 from skadi.core.demo import Demo
-from skadi.cli.delegate import CreatesDTs, ProcessesPackets
-from skadi.model import registry, decoder
-from skadi.model.sendprop import Type, Flag
+from skadi.cli.delegate import CreatesSendTables, ProcessesPackets
+from skadi.model.repo import Repo
+from skadi.model.prop import Type, Flag
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -25,47 +25,56 @@ root = os.path.join(pwd, '..')
 def flatten(list):
     return sum(list, [])
 
+class ComparesType(object):
+    def __init__(self, type):
+        self._type = type
+
+    def __call__(self, other):
+        return self._type == other.type
+
 for arg in args:
     path   = os.path.join(root, arg)
     replay = Demo(path)
 
-    creates_dts       = CreatesDTs()
-    processes_packets = ProcessesPackets()
+    creates_send_tables = CreatesSendTables()
+    processes_packets   = ProcessesPackets()
 
-    replay.register(creates_dts, Demo.SendTables)
+    replay.register(creates_send_tables, Demo.SendTables)
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    registry    = registry.build_with(creates_dts.dts)
-    encoded_dts = registry.encoded()
+    repo = Repo(creates_send_tables.send_tables)
 
-    ss_all       = registry.sendprops(via=encoded_dts)
-    ss_int       = registry.sendprops(via=encoded_dts, t=Type.INT)
-    ss_float     = registry.sendprops(via=encoded_dts, t=Type.FLOAT)
-    ss_vector    = registry.sendprops(via=encoded_dts, t=Type.VECTOR)
-    ss_vectorxy  = registry.sendprops(via=encoded_dts, t=Type.VECTORXY)
-    ss_string    = registry.sendprops(via=encoded_dts, t=Type.STRING)
-    ss_array     = registry.sendprops(via=encoded_dts, t=Type.ARRAY)
-    ss_datatable = registry.sendprops(via=encoded_dts, t=Type.DATATABLE)
-    ss_exclu     = registry.sendprops(via=encoded_dts, f=Flag.EXCLUDE)
+    print "recv tables:"
+    for rt in repo.rt_select(lambda rt: True):
+        print "Props for %s" % rt.name
+        for i, p in enumerate(rt.props):
+            print "  %s: %s" % (str(i).ljust(3), str(p))
+
+    leaves = repo.st_select(lambda st: st.is_leaf)
+
+    #pp_exclu     = repo.st_exclusions(scope=leaves)
+    pp_all       = repo.st_props(scope=leaves) # + pp_exclu
+    pp_int       = repo.st_props(scope=leaves, fn=ComparesType(Type.INT      ))
+    pp_float     = repo.st_props(scope=leaves, fn=ComparesType(Type.FLOAT    ))
+    pp_vector    = repo.st_props(scope=leaves, fn=ComparesType(Type.VECTOR   ))
+    pp_vectorxy  = repo.st_props(scope=leaves, fn=ComparesType(Type.VECTORXY ))
+    pp_string    = repo.st_props(scope=leaves, fn=ComparesType(Type.STRING   ))
+    pp_array     = repo.st_props(scope=leaves, fn=ComparesType(Type.ARRAY    ))
+    pp_datatable = repo.st_props(scope=leaves, fn=ComparesType(Type.DATATABLE))
 
     print
     print "DTI-like Summary:"
-    print "  Send Tables:    {0}".format(len(encoded_dts))
-    print "  Send props:     {0}".format(len(ss_all))
+    print "  Send Tables:    {0}".format(len(leaves))
+    print "  Send props:     {0}".format(len(pp_all))
     print "  Flat props:     TBD"
-    print "  Int props:      {0}".format(len(ss_int))
-    print "  Float props:    {0}".format(len(ss_float))
-    print "  Vector props:   {0}".format(len(ss_vector))
-    print "  VectorXY props: {0}".format(len(ss_vectorxy))
-    print "  String props:   {0}".format(len(ss_string))
-    print "  Array props:    {0}".format(len(ss_array))
-    print "  Table props:    {0}".format(len(ss_datatable))
-    print "  Exclu props:    {0}".format(len(ss_exclu))
+    print "  Int props:      {0}".format(len(pp_int))
+    print "  Float props:    {0}".format(len(pp_float))
+    print "  Vector props:   {0}".format(len(pp_vector))
+    print "  VectorXY props: {0}".format(len(pp_vectorxy))
+    print "  String props:   {0}".format(len(pp_string))
+    print "  Array props:    {0}".format(len(pp_array))
+    print "  Table props:    {0}".format(len(pp_datatable))
+    #print "  Exclu props:    {0}".format(len(pp_exclu))
     print
 
-    for dt in encoded_dts:
-        flatprops = registry.flattened(dt)
-        print "flatprops {0}".format(dt.name)
-        for index, s in enumerate(flatprops):
-            print "  {0}: {1}".format(str(index).rjust(3), str(s))

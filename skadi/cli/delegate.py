@@ -1,5 +1,5 @@
 from skadi.core.parser import Parser
-from skadi.model.dt import DT
+from skadi.model.table import SendTable
 
 class RecordsMessages(object):
     def __init__(self):
@@ -13,9 +13,9 @@ class RecordsMessages(object):
     def recorded_messages(self):
         return self.captures.keys()
 
-class CreatesDTs(object):
+class CreatesSendTables(object):
     def __init__(self):
-        self.dts = []
+        self.send_tables = []
 
     def __call__(self, msg, obj):
         parser   = Parser(obj)
@@ -25,7 +25,9 @@ class CreatesDTs(object):
         parser.parse()
 
         for capture in delegate.captures[Parser.SendTable]:
-            self.dts.append(DT(capture))
+            st = SendTable(capture)
+            if not st.is_last:
+                self.send_tables.append(st)
 
 class ProcessesPackets(object):
     def __call__(self, msg, obj):

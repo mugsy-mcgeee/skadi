@@ -44,16 +44,16 @@ class Demo(Dispatcher):
 
     def __init__(self, path):
         super(Demo,self).__init__()
-        self.path = path
-        self.file = None
+        self._path = path
+        self._file = None
 
     def parse(self):
         self._open()
 
-        self.file.seek(12) # skip demo header
+        self._file.seek(12) # skip demo header
 
         while True:
-            cmd_tell, cmd_meta = self.file.tell(), self.file.read(12)
+            cmd_tell, cmd_meta = self._file.tell(), self._file.read(12)
             if len(cmd_meta) == 0:
                 break
 
@@ -61,8 +61,8 @@ class Demo(Dispatcher):
             cmd_tick, cmd_pos = decode_varint(cmd_meta, cmd_pos)
             cmd_size, cmd_pos = decode_varint(cmd_meta, cmd_pos)
 
-            self.file.seek(cmd_tell + cmd_pos, 0)
-            cmd_data = self.file.read(cmd_size)
+            self._file.seek(cmd_tell + cmd_pos, 0)
+            cmd_data = self._file.read(cmd_size)
 
             compressed = \
                 (demo_pb2.DEM_IsCompressed & cmd == demo_pb2.DEM_IsCompressed)
@@ -83,8 +83,8 @@ class Demo(Dispatcher):
         self._close()
 
     def _open(self):
-        self.file = open(self.path, 'rb')
+        self._file = open(self._path, 'rb')
 
     def _close(self):
-        self.file.close()
-        self.file = None
+        self._file.close()
+        self._file = None
