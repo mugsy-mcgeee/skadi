@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 
-import os
+import os, sys
 from optparse import OptionParser
+
+# This is ghetto and only accepts arguments relative to
+# project root, ex. demos/12345678.dem
+pwd  = os.path.dirname(__file__)
+root = os.path.join(pwd, '..')
+
+sys.path.append(root)
 
 from skadi.core.demo import Demo
 from skadi.cli.delegate import CreatesSendTables, ProcessesPackets
@@ -17,10 +24,6 @@ parser.add_option('-S', '--search',
 
 (options, args) = parser.parse_args()
 
-# This is ghetto and only accepts arguments relative to
-# project root, ex. demos/12345678.dem
-pwd  = os.path.dirname(__file__)
-root = os.path.join(pwd, '..')
 
 def flatten(list):
     return sum(list, [])
