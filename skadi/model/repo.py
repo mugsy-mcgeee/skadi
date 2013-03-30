@@ -1,62 +1,41 @@
-from skadi.model.table import SendTable, RecvTable, fn_excl
+from skadi.model.table import SendTable, RecvTable
 from skadi.model.prop import Flag, Type
 
 class Repo(object):
-    def __init__(self, send_tables):
-        self._send_tables = dict((st.name, st) for st in send_tables)
-        self._recv_tables = {}
+    def __init__(self, tables):
+        self._tables = dict((t.name(), t) for t in tables)
 
-        print '** Generating receive tables **'
-        members = self.st_select(lambda st: st.base() is None)
-        self._rt_populate(members)
+    def select(self, fn):
+        return [t for t_name, t in self._tables.items() if fn(t)]
 
-    def st_select(self, fn):
-        return [st for st_name, st in self._send_tables.items() if fn(st)]
-
-    def st_named(self, name):
+    def named(self, name):
         if name is None:
             return None
-        return self._send_tables[name]
+        return self._tables[name]
 
-    def st_find(self, fn):
-        gen = (st for st_name, st in self._send_tables.items() if fn(st))
+    def flatten(self, st, st_excl=None, depth=0):
+        pp_flat = []
+        st_excl = st_excl or st
+        st      = st - st_excl
+
+        for p in st.inclusions():
+            if p.type == Type.DATATABLE and p.flags & Flag.COLLAPSIBLE:
+                st      = self.named(p.st_name)
+                pp_flat = self.flatten(st, st_excl=st_excl, depth=depth+1) + pp_flat
+            elif p.type == Type.DATATABLE:
+                st      = self.named(p.st_name)
+                pp_flat = pp_flat + self.flatten(st, st_excl=st_excl, depth=depth+1)
+            else:
+                pp_flat.append(p)
+
+        return pp_flat
+
+    def find(self, fn):
+        gen = (t for t_name, t in self._tables.items() if fn(t))
         return next(gen, None)
 
-    def st_props(self, fn=None, scope=None):
+    def props(self, fn=None, scope=None):
         if scope is None:
-            scope = self._send_tables.values()
-        pp = [st.props(fn=fn) for st in scope]
-        return sum(pp, [])
-
-    def rt_named(self, name):
-        if name is None:
-            return RecvTable(None, [])
-        return self._recv_tables[name]
-
-    def rt_select(self, fn):
-        return [rt for rt_name, rt in self._recv_tables.items() if fn(rt)]
-
-    def rt_find(self, fn):
-        gen = (rt for rt in self._recv_tables.values() if fn(rt))
-        return next(gen, None)
-
-    def rt_props(self, fn=None, scope=None):
-        if scope is None:
-            scope = self._recv_tables.values()
-        pp = [rt.props(fn=fn) for rt in scope]
-        return sum(pp, [])
-
-    def _rt_populate(self, members, depth=0):
-        for st in members:
-            flatprops = st.flatten(self)
-
-            pad = '  ' * depth
-            print '{0}{1}'.format(pad, st.name)
-            for i, p in enumerate(filter(fn_excl, st.props())):
-                print '  {0}{1}: {2}'.format(pad, str(i).rjust(2), str(p))
-
-            for i, p in enumerate(flatprops):
-                print '{0}->{1}: {2}'.format(pad, str(i).rjust(3), str(p))
-
-            members = self.st_select(lambda st2: st2.base() == st.name)
-            self._rt_populate(members, depth=depth+1)
+            scope = self._tables.values()
+        props = [t.props(fn=fn) for t in scope]
+        return sum(props, [])

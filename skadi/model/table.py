@@ -1,64 +1,64 @@
 from skadi.model.prop import Prop, Flag, Type
 
-fn_excl          = lambda p: p.flags & Flag.EXCLUDE
-fn_incl          = lambda p: p.flags ^ Flag.EXCLUDE
-fn_prioritized   = lambda p: p.priority < 128
-fn_by_priority   = lambda p: p.priority
-fn_deprioritized = lambda p: p.priority == 128
-fn_by_type       = lambda p: p.type
+fn_incl     = lambda p: p.flags ^ Flag.EXCLUDE
+fn_excl     = lambda p: p.flags & Flag.EXCLUDE
+fn_as_tuple = lambda p: (p.st_name, p.name)
 
-class SendTable(object):
-    def __init__(self, obj):
-        self.name       = obj.net_table_name
-        self.is_leaf    = obj.needs_decoder
-        self.is_last    = obj.is_end
-        self._props     = [Prop(self.name, p) for p in obj.props]
-        self._flatprops = None
+class Proplist(object):
+    def __init__(self, props):
+        self._props = props
+
+    def props(self, fn=None):
+        return filter(fn, self._props) if fn else self._props
+
+    def inclusions(self, fn=None):
+        base = self.props(fn=fn_incl)
+        return filter(fn, base) if fn else base
+
+    def exclusions(self):
+        return map(fn_as_tuple, self.props(fn=fn_excl))
+
+    def __sub__(self, other):
+        excl = other.exclusions()
+        diff = self.inclusions(lambda p: (p.st_name, p.name) not in excl)
+        return Proplist(diff)
+
+class Table(object):
+    delegated = ('props', 'inclusions', 'exclusions')
+
+    def __init__(self, name, proplist):
+        self._name     = name
+        self._proplist = proplist
+
+    def __getattribute__(self, name):
+        if name in Table.delegated:
+            return self.proplist().__getattribute__(name)
+        else:
+            return object.__getattribute__(self, name)
+
+    def name(self):
+        return self._name
+
+    def proplist(self):
+        return self._proplist
+
+class SendTable(Table):
+    def __init__(self, name, proplist, is_leaf=False):
+        super(SendTable, self).__init__(name, proplist)
+        self._is_leaf = is_leaf
+
+    def __sub__(self, other):
+        proplist = self.proplist() - other.proplist()
+        return SendTable(self.name(), proplist, is_leaf=self.is_leaf())
 
     def base(self):
         gen = (p for p in self.props(lambda p: p.name == 'baseclass'))
         p   = next(gen, None)
         return p.st_name if p else None
 
-    def props(self, fn=None):
-        pp = [p for p in self._props]
-        return filter(fn, pp) if fn else pp
+    def is_leaf(self):
+        return self._is_leaf
 
-    def flatten(self, repo, excl=None, coll=False, depth=0):
-        pp_flat = []
-        pp_incl = filter(fn_incl, self.props())
-        pp_excl = filter(fn_excl, self.props())
-
-        if excl is None:
-            excl = map(lambda p: (p.st_name, p.name), pp_excl)
-        else:
-            excl = map(lambda p: (p.st_name, p.name), pp_excl) + excl
-
-        _excl = []
-
-        for p in pp_incl:
-            if (p.origin, p.name) not in excl:
-                if p.type == Type.DATATABLE and p.flags & Flag.COLLAPSIBLE:
-                    st      = repo.st_named(p.st_name)
-                    pp_flat = st.flatten(repo, excl=excl, depth=depth+1) + pp_flat
-                elif p.type == Type.DATATABLE:
-                    st      = repo.st_named(p.st_name)
-                    pp_flat = pp_flat + st.flatten(repo, excl=excl, depth=depth+1)
-                else:
-                    pp_flat.append(p)
-            else:
-                _excl.append((p.origin, p.name))
-
-        diff = set(excl) - set(_excl)
-        if diff:
-            print 'at level %s' % self.name
-            for p in diff:
-                if p[0] == self.name:
-                    print "NEXCL: %s.%s" % p
-
-        return sorted(pp_flat, key=fn_by_priority)
-
-class RecvTable(object):
-    def __init__(self, name, props):
-        self.name  = name
-        self.props = props
+class RecvTable(Table):
+    def __init__(self, name, proplist):
+        super(RecvTable, self).__init__(name, proplist)

@@ -14,6 +14,7 @@ from skadi.core.demo import Demo
 from skadi.cli.delegate import CreatesSendTables, ProcessesPackets
 from skadi.model.repo import Repo
 from skadi.model.prop import Type, Flag
+from skadi.model.table import RecvTable, Proplist
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -24,16 +25,19 @@ parser.add_option('-S', '--search',
 
 (options, args) = parser.parse_args()
 
-
-def flatten(list):
-    return sum(list, [])
-
 class ComparesType(object):
     def __init__(self, type):
         self._type = type
 
     def __call__(self, other):
         return self._type == other.type
+
+class EnsuresMask(object):
+    def __init__(self, flag):
+        self._flag = flag
+
+    def __call__(self, other):
+        return other.flags & self._flag
 
 for arg in args:
     path   = os.path.join(root, arg)
@@ -46,38 +50,38 @@ for arg in args:
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    repo = Repo(creates_send_tables.send_tables)
+    st_repo = Repo(creates_send_tables.send_tables)
+    leaves  = st_repo.select(lambda st: st.is_leaf())
 
-    print "recv tables:"
-    for rt in repo.rt_select(lambda rt: True):
-        print "Props for %s" % rt.name
-        for i, p in enumerate(rt.props):
-            print "  %s: %s" % (str(i).ljust(3), str(p))
-
-    leaves = repo.st_select(lambda st: st.is_leaf)
-
-    #pp_exclu     = repo.st_exclusions(scope=leaves)
-    pp_all       = repo.st_props(scope=leaves) # + pp_exclu
-    pp_int       = repo.st_props(scope=leaves, fn=ComparesType(Type.INT      ))
-    pp_float     = repo.st_props(scope=leaves, fn=ComparesType(Type.FLOAT    ))
-    pp_vector    = repo.st_props(scope=leaves, fn=ComparesType(Type.VECTOR   ))
-    pp_vectorxy  = repo.st_props(scope=leaves, fn=ComparesType(Type.VECTORXY ))
-    pp_string    = repo.st_props(scope=leaves, fn=ComparesType(Type.STRING   ))
-    pp_array     = repo.st_props(scope=leaves, fn=ComparesType(Type.ARRAY    ))
-    pp_datatable = repo.st_props(scope=leaves, fn=ComparesType(Type.DATATABLE))
+    pp_excl      = st_repo.props(scope=leaves, fn=EnsuresMask(Flag.EXCLUDE))
+    pp_all       = st_repo.props(scope=leaves)
+    pp_int       = st_repo.props(scope=leaves, fn=ComparesType(Type.INT      ))
+    pp_float     = st_repo.props(scope=leaves, fn=ComparesType(Type.FLOAT    ))
+    pp_vector    = st_repo.props(scope=leaves, fn=ComparesType(Type.VECTOR   ))
+    pp_vectorxy  = st_repo.props(scope=leaves, fn=ComparesType(Type.VECTORXY ))
+    pp_string    = st_repo.props(scope=leaves, fn=ComparesType(Type.STRING   ))
+    pp_array     = st_repo.props(scope=leaves, fn=ComparesType(Type.ARRAY    ))
+    pp_datatable = st_repo.props(scope=leaves, fn=ComparesType(Type.DATATABLE))
 
     print
-    print "DTI-like Summary:"
-    print "  Send Tables:    {0}".format(len(leaves))
-    print "  Send props:     {0}".format(len(pp_all))
-    print "  Flat props:     TBD"
-    print "  Int props:      {0}".format(len(pp_int))
-    print "  Float props:    {0}".format(len(pp_float))
-    print "  Vector props:   {0}".format(len(pp_vector))
-    print "  VectorXY props: {0}".format(len(pp_vectorxy))
-    print "  String props:   {0}".format(len(pp_string))
-    print "  Array props:    {0}".format(len(pp_array))
-    print "  Table props:    {0}".format(len(pp_datatable))
-    #print "  Exclu props:    {0}".format(len(pp_exclu))
+    print 'DTI-like Summary:'
+    print '  Send Tables:    {0}'.format(len(leaves      ))
+    print '  Send props:     {0}'.format(len(pp_all      ))
+    print '  Int props:      {0}'.format(len(pp_int      ))
+    print '  Float props:    {0}'.format(len(pp_float    ))
+    print '  Vector props:   {0}'.format(len(pp_vector   ))
+    print '  VectorXY props: {0}'.format(len(pp_vectorxy ))
+    print '  String props:   {0}'.format(len(pp_string   ))
+    print '  Array props:    {0}'.format(len(pp_array    ))
+    print '  Table props:    {0}'.format(len(pp_datatable))
+    print '  Exclu props:    {0}'.format(len(pp_excl     ))
+    print '  Flat props:     TBD'
     print
 
+    recv_tables = []
+    for st in leaves:
+        name     = st.name
+        proplist = Proplist(st_repo.flatten(st))
+        recv_tables.append(RecvTable(name, proplist))
+
+    rt_repo = Repo(recv_tables)
