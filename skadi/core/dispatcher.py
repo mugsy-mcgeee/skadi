@@ -3,11 +3,11 @@ class Dispatcher(object):
     Unhandled  = 1 << 15
 
     def __init__(self):
-        self.delegates = []
+        self._delegates = []
 
     def register(self, callback, mask = Everything):
-        self.delegates.append([callback, mask])
+        self._delegates.append([callback, mask])
 
     def dispatch(self, message, obj):
-        expecting = [s[0] for s in self.delegates if (s[-1] & message)]
+        expecting = [s[0] for s in self._delegates if (s[-1] & message)]
         [delegate(message, obj) for delegate in expecting]

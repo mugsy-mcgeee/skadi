@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 
-import os
+import os, sys
 from optparse import OptionParser
 
+# This is ghetto and only accepts arguments relative to
+# project root, ex. demos/12345678.dem
+pwd  = os.path.dirname(__file__)
+root = os.path.join(pwd, '..')
+
+sys.path.append(root)
+
 from skadi.core.demo import Demo
-from skadi.cli.delegate.creates_dts import CreatesDTs
-from skadi.cli.delegate.processes_packets import ProcessesPackets
-from skadi.cli.model import tree, encoder
+from skadi.cli.delegate import CreatesSendTables, ProcessesPackets
+from skadi.model.repo import Repo
+from skadi.model.prop import Type, Flag
+from skadi.model.table import RecvTable, Proplist
 
 usage  = "usage: %prog [options] 12345678.dem ..."
 parser = OptionParser(usage)
@@ -17,32 +25,63 @@ parser.add_option('-S', '--search',
 
 (options, args) = parser.parse_args()
 
-# This is ghetto and only accepts arguments relative to
-# project root, ex. demos/12345678.dem
-pwd  = os.path.dirname(__file__)
-root = os.path.join(pwd, '..')
+class ComparesType(object):
+    def __init__(self, type):
+        self._type = type
+
+    def __call__(self, other):
+        return self._type == other.type
+
+class EnsuresMask(object):
+    def __init__(self, flag):
+        self._flag = flag
+
+    def __call__(self, other):
+        return other.flags & self._flag
 
 for arg in args:
     path   = os.path.join(root, arg)
     replay = Demo(path)
 
-    creates_dts       = CreatesDTs()
-    processes_packets = ProcessesPackets()
+    creates_send_tables = CreatesSendTables()
+    processes_packets   = ProcessesPackets()
 
-    replay.register(creates_dts, Demo.SendTables)
+    replay.register(creates_send_tables, Demo.SendTables)
     replay.register(processes_packets, Demo.Packet)
     replay.parse()
 
-    tree                   = tree.build_with(creates_dts.dts)
-    nodes_with_encoded_dts = tree.select(lambda node, depth: True) #node.dt.encoded)
+    st_repo = Repo(creates_send_tables.send_tables)
+    leaves  = st_repo.select(lambda st: st.is_leaf())
 
-    count = 0
-    for node in nodes_with_encoded_dts:
-        print "DT: %s" % node.dt.name
-        e = encoder.amass_sendprops(tree, node.dt)
-        for index, s in enumerate(e):
-            count += 1
-            print "  %i: %s (%s) t=%i; p=%i; f=%s" % (index, s.name, s.origin.name, s.type, s.priority, bin(s.flags)[2:].zfill(20))
+    pp_excl      = st_repo.props(scope=leaves, fn=EnsuresMask(Flag.EXCLUDE))
+    pp_all       = st_repo.props(scope=leaves)
+    pp_int       = st_repo.props(scope=leaves, fn=ComparesType(Type.INT      ))
+    pp_float     = st_repo.props(scope=leaves, fn=ComparesType(Type.FLOAT    ))
+    pp_vector    = st_repo.props(scope=leaves, fn=ComparesType(Type.VECTOR   ))
+    pp_vectorxy  = st_repo.props(scope=leaves, fn=ComparesType(Type.VECTORXY ))
+    pp_string    = st_repo.props(scope=leaves, fn=ComparesType(Type.STRING   ))
+    pp_array     = st_repo.props(scope=leaves, fn=ComparesType(Type.ARRAY    ))
+    pp_datatable = st_repo.props(scope=leaves, fn=ComparesType(Type.DATATABLE))
 
     print
-    print count
+    print 'DTI-like Summary:'
+    print '  Send Tables:    {0}'.format(len(leaves      ))
+    print '  Send props:     {0}'.format(len(pp_all      ))
+    print '  Int props:      {0}'.format(len(pp_int      ))
+    print '  Float props:    {0}'.format(len(pp_float    ))
+    print '  Vector props:   {0}'.format(len(pp_vector   ))
+    print '  VectorXY props: {0}'.format(len(pp_vectorxy ))
+    print '  String props:   {0}'.format(len(pp_string   ))
+    print '  Array props:    {0}'.format(len(pp_array    ))
+    print '  Table props:    {0}'.format(len(pp_datatable))
+    print '  Exclu props:    {0}'.format(len(pp_excl     ))
+    print '  Flat props:     TBD'
+    print
+
+    recv_tables = []
+    for st in leaves:
+        name     = st.name
+        proplist = Proplist(st_repo.flatten(st))
+        recv_tables.append(RecvTable(name, proplist))
+
+    rt_repo = Repo(recv_tables)

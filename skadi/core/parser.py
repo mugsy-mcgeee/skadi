@@ -18,10 +18,10 @@ class Parser(Dispatcher):
 
     def __init__(self, obj):
         super(Parser,self).__init__()
-        self.obj = obj
+        self._obj = obj
 
     def parse(self):
-        data    = self.obj.data
+        data    = self._obj.data
         msg_pos = 0
 
         while True:

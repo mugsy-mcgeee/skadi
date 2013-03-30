@@ -13,20 +13,20 @@ def demo_path_for(name):
 
 class CapturesMessages(object):
     def __init__(self):
-        self.captures = {}
+        self._captures = {}
 
     def __call__(self, message, obj):
-        if not message in self.captures:
-            self.captures[message] = []
-        self.captures[message].append(obj)
+        if not message in self._captures:
+            self._captures[message] = []
+        self._captures[message].append(obj)
 
     def recorded_messages(self):
-        return self.captures.keys()
+        return self._captures.keys()
 
 class CapturesFirstMessage(object):
     def __init__(self):
-        self.capture = None
+        self._capture = None
 
     def __call__(self, message, obj):
-        if self.capture is None:
-            self.capture = (message, obj)
+        if self._capture is None:
+            self._capture = (message, obj)
