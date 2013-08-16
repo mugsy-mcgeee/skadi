@@ -1,13 +1,12 @@
 import bitstring
-import io
 
 
-SIZEOF_BYTE = 4
-SIZEOF_BIT = SIZEOF_BYTE * 8
-FORMAT = 'uintle:{0}'.format(SIZEOF_BIT)
+SIZEOF_WORD_BYTES = 4
+SIZEOF_WORD_BITS = SIZEOF_WORD_BYTES * 8
+FORMAT = 'uintle:{0}'.format(SIZEOF_WORD_BITS)
 
 
-def wrap(bytes):
+def construct(bytes):
   return Bitstream(bytes)
 
 
@@ -29,11 +28,11 @@ class Bitstream(object):
         break
 
   def read(self, length): # in bits
-    l = self.data[self.pos / SIZEOF_BIT]
-    r = self.data[(self.pos + length - 1) / SIZEOF_BIT]
+    l = self.data[self.pos / SIZEOF_WORD_BITS]
+    r = self.data[(self.pos + length - 1) / SIZEOF_WORD_BITS]
 
-    pos_shift = self.pos & (SIZEOF_BIT - 1)
-    rebuild = r << (SIZEOF_BIT - pos_shift) | l >> pos_shift
+    pos_shift = self.pos & (SIZEOF_WORD_BITS - 1)
+    rebuild = r << (SIZEOF_WORD_BITS - pos_shift) | l >> pos_shift
 
     self.pos += length
 
@@ -58,7 +57,7 @@ class Bitstream(object):
       i += 1
     return str(bytearray(bytes))
 
-  def read_varint_35(self):
+  def read_varint(self):
     run, value = 0, 0
 
     while True:

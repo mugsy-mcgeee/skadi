@@ -1,4 +1,4 @@
-from skadi.meta import prop
+from skadi.engine.dt import prop as dt_prop
 
 
 def construct(dt, props):
@@ -19,7 +19,7 @@ def construct(dt, props):
 
     while cursor < proplen:
       p = rt.props[cursor]
-      is_co = (pr == 64 and (p.flags & prop.Flag.ChangesOften))
+      is_co = (pr == 64 and (p.flags & dt_prop.Flag.ChangesOften))
 
       if is_co or p.priority == pr:
         rt = rt.swap(rt.props[hole], p)
