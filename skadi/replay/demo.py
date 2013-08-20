@@ -1,5 +1,6 @@
 import copy
 
+import skadi.wex_impl as wex_impl
 from skadi.engine import *
 from skadi.engine.unpacker import entity as uent
 from skadi.engine.unpacker.entity import PVS
@@ -16,6 +17,8 @@ class InvalidDemo(RuntimeError):
 
 
 def construct(io):
+  wex_impl.load_wex() # load and initialize wex files
+
   io.seek(0)
 
   if io.read(len(HEADER)) != HEADER:

@@ -1,6 +1,7 @@
 import copy
 import io
 
+import skadi.wex_impl as wex_impl
 from skadi.engine import bitstream as bs
 from skadi.engine.unpacker import entity as uent
 from skadi.engine.unpacker import string_table as ust
@@ -28,11 +29,10 @@ class Stream(object):
     self._bootstrap_tick = index.locate_tick(tick)
 
   def __iter__(self):
-    def _apply():
-      peek = next(self.peeks)
-      return self.apply(peek)
-
-    return iter(_apply, None)
+    for peek in self.peeks:
+      value_tuple = self.apply(peek)
+      wex_impl.process(self)
+      yield value_tuple
 
   def bootstrap(self):
     full_packet_tick = self.index.locate_full_tick(self._bootstrap_tick)

@@ -9,7 +9,7 @@ pwd = os.path.dirname(__file__)
 root = os.path.join(pwd, '..')
 sys.path.append(root)
 
-from skadi import demo
+from skadi.replay import demo
 
 
 option_parser = optparse.OptionParser()
