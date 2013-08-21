@@ -49,3 +49,6 @@ def from_ehandle(ehandle):
   index = ehandle & ((1 << MAX_EDICT_BITS) - 1)
   serial = ehandle >> MAX_EDICT_BITS
   return index, serial
+
+def ent_type(stream, ent):
+  return stream.recv_tables[ent[0]].dt
