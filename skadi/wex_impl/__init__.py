@@ -28,27 +28,19 @@ def load_wex():
         wex_pkgs.append(cls()) # instantiate class
 
 
-def get_wex_inst(cls_name):
-  for pkg in wex_pkgs:
-    if pkg.__class__ == cls_name:
-      return pkg
+def get_wex_inst(cls):
+  cls_str = '{}.{}'.format(cls.__module__, cls.__name__)
+
+  for wex in wex_pkgs:
+    wex_str = '{}.{}'.format(wex.__class__.__module__, wex.__class__.__name__)
+    if wex_str == cls_str:
+      return wex
+  print '{} not found in wex_pkgs:\n'.format(cls_name)
+  print 'wex_pkgs={}'.format(wex_pkgs)
   return None
 
 
 def process(stream):
   for cls in wex_pkgs:
-    #print '{}.{}'.format(cls, cls.process)
-    cls.process(stream)  
+    cls._world = stream.world
 
-
-MAX_EDICT_BITS = 11
-def to_ehandle(index, serial):
-  return (serial << MAX_EDICT_BITS) | index
-
-def from_ehandle(ehandle):
-  index = ehandle & ((1 << MAX_EDICT_BITS) - 1)
-  serial = ehandle >> MAX_EDICT_BITS
-  return index, serial
-
-def ent_type(stream, ent):
-  return stream.recv_tables[ent[0]].dt

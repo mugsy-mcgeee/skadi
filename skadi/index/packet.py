@@ -4,6 +4,7 @@ import io
 from skadi.index import read_varint
 from skadi.index import InvalidProtobufMessage, Index
 from skadi.protoc import netmessages_pb2 as pb_n
+from skadi.protoc import demo_pb2 as pb_d
 
 
 PBMSG_BY_KIND = {
@@ -64,10 +65,4 @@ class PacketIndex(Index):
   def __init__(self, iterable):
     super(PacketIndex, self).__init__(iterable)
 
-  @property
-  def full_packets(self):
-    return filter(lambda p: self.find(pb_d.CDemoFullPacket), self.replay)
-
-  @property
-  def packets(self):
-    return filter(lambda p: self.find(pb_d.CDemoPacket), self.replay)
+  # TODO: peek properties for svc msgs in packets, i.e packet_entities_peek

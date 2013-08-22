@@ -1,17 +1,19 @@
+import types
 import inspect
 from collections import OrderedDict, defaultdict
 
 import skadi.wex_impl as wex_impl
 import skadi.wex_impl.trans as wex_trans
-from skadi.wex_impl import ent_type
+
+from skadi.engine import world
 
 OFFSET_BASED = ['DT_DOTA_PlayerResource']
+OFFSET_ARRAY_SIZE = 32
 
 
-class Property(object):
-  def __init__(self, ent_obj, prop_str, trans_func):
-    self.ent_list = ent_obj
-    self.trans_func = trans_func
+class valueOf(object):
+  def __init__(self, prop_str):
+    self.trans_func = lambda self,val,world:val
 
     if len(prop_str.split()) == 2:
       self.prop_key = tuple(prop_str.split())
@@ -26,26 +28,31 @@ class Property(object):
       else:
         self.is_handle = False
 
-  def __call__(self, wex_obj, stream):
-    ents = self.ent_list(wex_obj, stream)
+  def asWex(self, cls_str):
+    # Assume the wex object is already created and populated,
+    # we just need to find it's index and reference it
+    pass
 
-    values = {}
-    if len(ents) > 0:
-      if ent_type(stream, ents[0]) in OFFSET_BASED: 
-        # offset based instances
-        assert(len(ents) == 1)
-        data_set = ents[0][2]
-        keys = [k for k in data_set.keys() if k[0] == self.prop_key]
-        for key in keys:
-          offset = int(key[1])
-          values[offset] = self.trans_func(self, data_set[key], stream)
-      else: 
-        # object based instances
-        for i,e in enumerate(ents):
-          prop_val = e[2][self.prop_key]
-          values[i] = self.trans_func(self, prop_val, stream)
+  def asString(self):
+    self.trans_func = wex_trans.to_datatype
 
-    return values
+  def __call__(self, wex_obj, world):
+    if wex_obj._offset_based:
+      try:
+        ehandle, offset = wex_obj.id
+      except:
+        raise Exception('Expected id tuple(ehandle,offset), not {}'.format(wex_obj.id))
+      # offset based instances
+      data_set = world.by_ehandle[ehandle]
+      key = (self.prop_key, str(offset).zfill(4))
+      try:
+        return self.trans_func(self, data_set[key], world)
+      except wex_trans.NotFound as e:
+        print e
+    else: 
+      # object based instances
+      prop_val = world.by_ehandle[wex_obj.id][self.prop_key]
+      return self.trans_func(self, prop_val, world)
 
 
 class Entity(object):
@@ -59,86 +66,96 @@ class Entity(object):
     return Property(self, prop_str, wex_trans.to_datatype)
 
   def __call__(self, wex_obj, stream):
-    all_ents = stream.entities.values()
     # If entity_str is shortname, perform prefix search
     if not self.entity_str.startswith('DT_'):
       # try DT_DOTA_ first
       search_str = 'DT_DOTA_{}'.format(self.entity_str)
-      ents = filter(lambda e:ent_type(stream,e)==search_str, all_ents)
+      ents = stream.world.find_all_by_dt(search_str).keys()
       if len(ents) == 0: 
         # try DT_ next
         search_str = 'DT_{}'.format(self.entity_str)
-        ents = filter(lambda e:ent_type(stream,e)==search_str, all_ents)
+        ents = stream.world.find_all_by_dt(search_str).keys()
     else:
-      ents = filter(lambda e:ent_type(stream,e)==self.entity_str, all_ents)
+      ents = stream.world.find_all_by_dt(self.entity_str).keys()
     return ents
 
-# Entity aliases
-class From(Entity):
-  pass
+
+class source(object):
+  """ @source decorator """
+  def __init__(self, type_str):
+    self.type_str = type_str
+
+  def __call__(self, cls):
+    setattr(cls, 'src_table', self.type_str)
+    return cls
 
 
 class Wex(object):
-  def __init__(self):
+  def __init__(self, ehandle=None, offset_based=False):
     # META
     self._obj_list = {}
+    self._world = None
+    self._offset_based = offset_based
 
     # INSTANCE
-    self._id = None
-    self._data = {}
-    self._prop_list = []
+    self.id = ehandle
+    self._props = {}
     for member in inspect.getmembers(self):
       name,func = member
-      if isinstance(func, Property) or isinstance(func, Entity):
-        self._prop_list.append( (name,func) )
+      if isinstance(func, valueOf):
+        self._props[name] = func
 
   # META
-  @classmethod
-  def __iter__(cls):
-    # find the instance of our own class in wex_pkgs
-    obj = wex_impl.get_wex_inst(cls)
-    # Return iter of all instances
-    if obj is not None:
-      return (x for x in obj._obj_list.values())
+  def _find_my_entities(self):
+    ents = []
+
+    # If entity_str is shortname, perform prefix search
+    if not self.src_table.startswith('DT_'):
+      # try DT_DOTA_ first
+      search_str = 'DT_DOTA_{}'.format(self.src_table)
+      self._offset_based = search_str in OFFSET_BASED
+      ents = self._world.find_all_by_dt(search_str).keys()
+      if len(ents) == 0: 
+        # try DT_ next
+        search_str = 'DT_{}'.format(self.src_table)
+        self._offset_based = search_str in OFFSET_BASED
+        ents = self._world.find_all_by_dt(search_str).keys()
     else:
-      return None
+      ents = self._world.find_all_by_dt(self.src_table).keys()
+      self._offset_based = self.src_table in OFFSET_BASED
+    return ents
 
   # META
   @classmethod
   def get_all(cls):
     # find the instance of our own class in wex_pkgs
     obj = wex_impl.get_wex_inst(cls)
-    # Return list of all instances
-    if obj is not None:
-      return obj._obj_list.values()
-    else:
-      return None
 
-  #META
-  def process(self, stream):
-    # attempt to process 'id' first and only when we
-    # instantiate the class for the first time. 
-    # it is necessary that id cannot change
-    for _,func in ((n,f) for (n,f) in self._prop_list if n == 'id'):
-      for id in func(self, stream).itervalues():
-        if id not in self._obj_list:
-          self._obj_list[id] = self.__class__()
-          self._obj_list[id]._data['id'] = id
+    ents = obj._find_my_entities()
+    print '{} Found {} entities'.format(cls.src_table, len(ents))
+    for ehandle in ents:
+      if obj._offset_based:
+        for offset in range(OFFSET_ARRAY_SIZE):
+          key = '{}_{}'.format(ehandle, offset)
+          if key not in obj._obj_list:
+            print '\tInstantiating new OB {} = {}'.format(obj.__class__, key)
+            obj._obj_list[key] = obj.__class__((ehandle,offset), obj._offset_based)
+            obj._obj_list[key]._world = obj._world
+      else:
+        if ehandle not in obj._obj_list:
+          print '\tInstantiating new EB {} = {}'.format(obj.__class__, ehandle, obj._world)
+          obj._obj_list[ehandle] = obj.__class__(ehandle, obj._offset_based)
+          obj._obj_list[ehandle]._world = obj._world
 
-    # process all properties except 'id'
-    for name,func in ((n,f) for (n,f) in self._prop_list if n != 'id'):
-      values = func(self, stream)
-      for i,v in values.iteritems():
-        if i not in self._obj_list:
-          pass
-          #self._obj_list[i] = self.__class__()
-        else:
-          self._obj_list[i]._data[name] = v
+    return obj._obj_list.values()
+
 
   # INSTANCE
   def __getattribute__(self, name):
-    my_data = object.__getattribute__(self, '_data')
-    if name in my_data:
-      return my_data[name]
+    _props = object.__getattribute__(self, '_props')
+
+    if name in _props:
+      func = _props[name]
+      return func(self, object.__getattribute__(self, '_world'))
     else:
       return object.__getattribute__(self, name)

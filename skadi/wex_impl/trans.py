@@ -1,13 +1,18 @@
 import skadi.wex_impl as wex_impl
+from skadi.engine import world
+
+
+class NotFound(Exception):
+  pass
+
 
 def to_datatype(prop, src_val, stream):
   if prop.is_handle:
-    src_val,_ = wex_impl.from_ehandle(src_val)
-
-  if src_val != 2047:
-    index = str(stream.entities[src_val][0])
-    src_val = stream.recv_tables[index]
+    try:
+      src_val = stream.world.fetch_recv_table(src_val).dt
+    except KeyError:
+      raise NotFound('eHandle {} not found for prop {}'.format(src_val, prop.prop_key))
   else:
-    src_val = 'Undefined'
+    raise Exception('src_val={} and isn\'t handle. What is it then?'.format(src_val))
 
   return src_val
