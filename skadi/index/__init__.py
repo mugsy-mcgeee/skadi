@@ -1,4 +1,5 @@
 import math
+import itertools as it
 
 
 VI_BIT_MAX = 35
@@ -51,7 +52,7 @@ class Index(object):
     return iter(self.peeks)
 
   def find(self, cls):
-    return next(iter(filter(lambda p: p.cls == cls, self.peeks)), None)
+    return next(it.ifilter(lambda p: p.cls == cls, self.peeks), None)
 
   def find_all(self, cls):
     return filter(lambda p: p.cls == cls, self.peeks)
@@ -64,3 +65,6 @@ class Index(object):
 
   def find_ahead(self, offset):
     return filter(lambda p: p.offset > offset, self.peeks)
+
+  def find_between(self, start, stop):
+    return filter(lambda p: start < p.offset < stop, self.peeks)
