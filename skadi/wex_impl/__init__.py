@@ -40,6 +40,13 @@ def get_wex_inst(cls):
   return None
 
 
+def find_wex_class(cls_name):
+  for wex in wex_pkgs:
+    if wex.__class__.__name__ == cls_name:
+      return wex
+  return None
+
+
 def process(stream):
   for cls in wex_pkgs:
     cls._world = stream.world

@@ -3,17 +3,22 @@ import inspect
 from collections import OrderedDict, defaultdict
 
 import skadi.wex_impl as wex_impl
-import skadi.wex_impl.trans as wex_trans
 
-from skadi.engine import world
+from skadi.engine import world as se_world
 
 OFFSET_BASED = ['DT_DOTA_PlayerResource']
 OFFSET_ARRAY_SIZE = 32
 
 
+class PropertyNotFound(Exception):
+  pass
+class WexNotFound(Exception):
+  pass
+
+
 class valueOf(object):
   def __init__(self, prop_str):
-    self.trans_func = lambda self,val,world:val
+    self.trans_func = lambda wex_obj,self,val,world:val
 
     if len(prop_str.split()) == 2:
       self.prop_key = tuple(prop_str.split())
@@ -28,13 +33,25 @@ class valueOf(object):
       else:
         self.is_handle = False
 
-  def asWex(self, cls_str):
-    # Assume the wex object is already created and populated,
-    # we just need to find it's index and reference it
-    pass
+  def asWex(self, wex_cls_str):
+    def _func(wex_obj, prop_obj, src_val, world):
+      other_wex = wex_impl.find_wex_class(wex_cls_str)
+      if other_wex is not None:
+        index,serial = se_world.from_ehandle(src_val)
+        if index == 2047: # undefined object
+          return None
+        else:
+          if len(other_wex._obj_list) == 0:
+            print 'getall'
+            other_wex.get_all() # call this to create objs if needed
+          return other_wex._obj_list[src_val]
+      else:
+        obj_name = wex_obj.__class__.__name__
+        msg = '{} not found as referenced in {}'.format(wex_cls_str, obj_name)
+        raise WexNotFound(msg)
 
-  def asString(self):
-    self.trans_func = wex_trans.to_datatype
+    self.trans_func = _func
+    return self
 
   def __call__(self, wex_obj, world):
     if wex_obj._offset_based:
@@ -45,39 +62,23 @@ class valueOf(object):
       # offset based instances
       data_set = world.by_ehandle[ehandle]
       key = (self.prop_key, str(offset).zfill(4))
-      try:
-        return self.trans_func(self, data_set[key], world)
-      except wex_trans.NotFound as e:
-        print e
+      return self.trans_func(wex_obj, self, data_set[key], world)
     else: 
       # object based instances
       prop_val = world.by_ehandle[wex_obj.id][self.prop_key]
-      return self.trans_func(self, prop_val, world)
+      return self.trans_func(wex_obj, self, prop_val, world)
 
 
-class Entity(object):
-  def __init__(self, entity_str):
-    self.entity_str = entity_str
-    
-  def ValueOf(self, prop_str):
-    return Property(self, prop_str, lambda x,val,y:val)
-
-  def DataTypeFor(self, prop_str):
-    return Property(self, prop_str, wex_trans.to_datatype)
-
-  def __call__(self, wex_obj, stream):
-    # If entity_str is shortname, perform prefix search
-    if not self.entity_str.startswith('DT_'):
-      # try DT_DOTA_ first
-      search_str = 'DT_DOTA_{}'.format(self.entity_str)
-      ents = stream.world.find_all_by_dt(search_str).keys()
-      if len(ents) == 0: 
-        # try DT_ next
-        search_str = 'DT_{}'.format(self.entity_str)
-        ents = stream.world.find_all_by_dt(search_str).keys()
+class myDatatype(object):
+  def __call__(self, wex_obj, world):
+    if wex_obj._offset_based:
+      try:
+        ehandle, offset = wex_obj.id
+      except:
+        raise Exception('Expected id tuple(ehandle,offset), not {}'.format(wex_obj.id))
+      return world.fetch_recv_table(ehandle).dt
     else:
-      ents = stream.world.find_all_by_dt(self.entity_str).keys()
-    return ents
+      return world.fetch_recv_table(wex_obj.id).dt
 
 
 class source(object):
@@ -102,7 +103,7 @@ class Wex(object):
     self._props = {}
     for member in inspect.getmembers(self):
       name,func = member
-      if isinstance(func, valueOf):
+      if isinstance(func, valueOf) or isinstance(func, myDatatype):
         self._props[name] = func
 
   # META
@@ -132,7 +133,6 @@ class Wex(object):
     obj = wex_impl.get_wex_inst(cls)
 
     ents = obj._find_my_entities()
-    print '{} Found {} entities'.format(cls.src_table, len(ents))
     for ehandle in ents:
       if obj._offset_based:
         for offset in range(OFFSET_ARRAY_SIZE):
