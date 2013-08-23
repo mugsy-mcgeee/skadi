@@ -128,7 +128,7 @@ class Wex(object):
 
   # META
   @classmethod
-  def get_all(cls):
+  def all(cls):
     # find the instance of our own class in wex_pkgs
     obj = wex_impl.get_wex_inst(cls)
 
