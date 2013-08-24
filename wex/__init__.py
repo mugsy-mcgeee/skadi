@@ -1,6 +1,7 @@
 import types
 import inspect
 from collections import OrderedDict, defaultdict
+from copy import copy
 
 import skadi.wex_impl as wex_impl
 
@@ -16,8 +17,55 @@ class WexNotFound(Exception):
   pass
 
 
+class AsWex(object):
+  def __init__(self, wex_cls_str, chain=[]):
+    print 'AsWex({}, chain={})'.format(wex_cls_str, chain)
+    self.wex_cls_str = wex_cls_str
+    self.chain = chain
+
+  def valueOf(self, prop_str):
+    o_chain = self.chain
+    o_chain.append(self)
+    self.chain = []
+    return valueOf(prop_str, o_chain)
+
+  def var(self, var_name):
+    o_chain = self.chain
+    o_chain.append(self)
+    self.chain = []
+    return valueOf(var_name, o_chain, True)
+
+  def __call__(self, ctx, world):
+    print 'AsWex.call({}, ctx={}, chain={}'.format(self.wex_cls_str, ctx, self.chain)
+    for i,_func in enumerate(self.chain):
+      print '\t{}'.format(i),
+      ctx = _func(ctx, world)
+    prop_val = ctx
+    try:
+      print '\tprop_val={}'.format(world.fetch_recv_table(prop_val))
+    except KeyError:
+      print '\tprop_val=Undefined ehandle'
+
+    other_wex = wex_impl.find_wex_class(self.wex_cls_str)
+    if other_wex is not None:
+      index,serial = se_world.from_ehandle(prop_val)
+      if index == 2047: # undefined object
+        return None
+      else:
+        if len(other_wex._obj_list) == 0:
+          other_wex.all() # call this to create objs if needed
+        return other_wex._obj_list[prop_val]
+    else:
+      obj_name = wex_obj.__class__.__name__
+      msg = '{} not found as referenced in {}'.format(wex_cls_str, obj_name)
+      raise WexNotFound(msg)
+
+
 class valueOf(object):
-  def __init__(self, prop_str):
+  def __init__(self, prop_str, chain=[], var_access=False):
+    print 'valueOf({}, chain={})'.format(prop_str, chain)
+    self.chain = chain
+    self.var_access = var_access
     self.trans_func = lambda wex_obj,self,val,world:val
 
     if len(prop_str.split()) == 2:
@@ -34,39 +82,35 @@ class valueOf(object):
         self.is_handle = False
 
   def asWex(self, wex_cls_str):
-    def _func(wex_obj, prop_obj, src_val, world):
-      other_wex = wex_impl.find_wex_class(wex_cls_str)
-      if other_wex is not None:
-        index,serial = se_world.from_ehandle(src_val)
-        if index == 2047: # undefined object
-          return None
-        else:
-          if len(other_wex._obj_list) == 0:
-            print 'getall'
-            other_wex.get_all() # call this to create objs if needed
-          return other_wex._obj_list[src_val]
-      else:
-        obj_name = wex_obj.__class__.__name__
-        msg = '{} not found as referenced in {}'.format(wex_cls_str, obj_name)
-        raise WexNotFound(msg)
+    o_chain = self.chain
+    o_chain.append(self)
+    self.chain = []
+    return AsWex(wex_cls_str, o_chain)
 
-    self.trans_func = _func
-    return self
+  def __call__(self, ctx, world):
+    print 'valueOf.call({}, ctx={}, chain={}'.format(self.prop_key, ctx, self.chain)
+    for i,_func in enumerate(self.chain):
+      print '\t{}'.format(i),
+      ctx = _func(ctx, world)
+    wex_obj = ctx
+    print '\twex_obj={}'.format(wex_obj)
 
-  def __call__(self, wex_obj, world):
-    if wex_obj._offset_based:
-      try:
-        ehandle, offset = wex_obj.id
-      except:
-        raise Exception('Expected id tuple(ehandle,offset), not {}'.format(wex_obj.id))
-      # offset based instances
-      data_set = world.by_ehandle[ehandle]
-      key = (self.prop_key, str(offset).zfill(4))
-      return self.trans_func(wex_obj, self, data_set[key], world)
-    else: 
-      # object based instances
-      prop_val = world.by_ehandle[wex_obj.id][self.prop_key]
-      return self.trans_func(wex_obj, self, prop_val, world)
+    if self.var_access:
+      return getattr(wex_obj, self.prop_key)
+    else:
+      if wex_obj._offset_based:
+        try:
+          ehandle, offset = wex_obj.id
+        except:
+          raise Exception('Expected id tuple(ehandle,offset), not {}'.format(wex_obj.id))
+        # offset based instances
+        data_set = world.by_ehandle[ehandle]
+        key = (self.prop_key, str(offset).zfill(4))
+        return data_set[key]
+      else: 
+        # object based instances
+        prop_val = world.by_ehandle[wex_obj.id][self.prop_key]
+        return prop_val
 
 
 class myDatatype(object):
@@ -103,7 +147,9 @@ class Wex(object):
     self._props = {}
     for member in inspect.getmembers(self):
       name,func = member
-      if isinstance(func, valueOf) or isinstance(func, myDatatype):
+      if isinstance(func, AsWex) or \
+         isinstance(func, valueOf) or \
+         isinstance(func, myDatatype):
         self._props[name] = func
 
   # META
@@ -138,17 +184,14 @@ class Wex(object):
         for offset in range(OFFSET_ARRAY_SIZE):
           key = '{}_{}'.format(ehandle, offset)
           if key not in obj._obj_list:
-            print '\tInstantiating new OB {} = {}'.format(obj.__class__, key)
             obj._obj_list[key] = obj.__class__((ehandle,offset), obj._offset_based)
             obj._obj_list[key]._world = obj._world
       else:
         if ehandle not in obj._obj_list:
-          print '\tInstantiating new EB {} = {}'.format(obj.__class__, ehandle, obj._world)
           obj._obj_list[ehandle] = obj.__class__(ehandle, obj._offset_based)
           obj._obj_list[ehandle]._world = obj._world
 
     return obj._obj_list.values()
-
 
   # INSTANCE
   def __getattribute__(self, name):
