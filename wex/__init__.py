@@ -18,10 +18,10 @@ class WexNotFound(Exception):
 
 
 class AsWex(object):
-  def __init__(self, wex_cls_str, chain=[]):
-    print 'AsWex({}, chain={})'.format(wex_cls_str, chain)
+  def __init__(self, wex_cls_str, chain=None):
     self.wex_cls_str = wex_cls_str
-    self.chain = chain
+    self.chain = chain or []
+    print '{}AsWex({}, chain={})'.format('\t'*len(self.chain), wex_cls_str, chain)
 
   def valueOf(self, prop_str):
     o_chain = self.chain
@@ -62,9 +62,9 @@ class AsWex(object):
 
 
 class valueOf(object):
-  def __init__(self, prop_str, chain=[], var_access=False):
-    print 'valueOf({}, chain={})'.format(prop_str, chain)
-    self.chain = chain
+  def __init__(self, prop_str, chain=None, var_access=False):
+    self.chain = chain or []
+    print '{}valueOf({}, chain={})'.format('\t'*len(self.chain), prop_str, chain)
     self.var_access = var_access
     self.trans_func = lambda wex_obj,self,val,world:val
 
