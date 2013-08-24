@@ -7,6 +7,8 @@ import skadi.wex_impl as wex_impl
 
 from skadi.engine import world as se_world
 
+DEBUG = False
+
 OFFSET_BASED = ['DT_DOTA_PlayerResource']
 OFFSET_ARRAY_SIZE = 32
 
@@ -17,11 +19,16 @@ class WexNotFound(Exception):
   pass
 
 
+def dprint(msg):
+  if DEBUG:
+    print msg
+
+
 class AsWex(object):
   def __init__(self, wex_cls_str, chain=None):
     self.wex_cls_str = wex_cls_str
     self.chain = chain or []
-    print '{}AsWex({}, chain={})'.format('\t'*len(self.chain), wex_cls_str, chain)
+    dprint('{}AsWex({}, chain={})'.format('\t'*len(self.chain), wex_cls_str, chain))
 
   def valueOf(self, prop_str):
     o_chain = self.chain
@@ -36,15 +43,10 @@ class AsWex(object):
     return valueOf(var_name, o_chain, True)
 
   def __call__(self, ctx, world):
-    print 'AsWex.call({}, ctx={}, chain={}'.format(self.wex_cls_str, ctx, self.chain)
-    for i,_func in enumerate(self.chain):
-      print '\t{}'.format(i),
+    dprint('AsWex.call({}, ctx={}, chain={})'.format(self.wex_cls_str, ctx, self.chain))
+    for _func in self.chain:
       ctx = _func(ctx, world)
     prop_val = ctx
-    try:
-      print '\tprop_val={}'.format(world.fetch_recv_table(prop_val))
-    except KeyError:
-      print '\tprop_val=Undefined ehandle'
 
     other_wex = wex_impl.find_wex_class(self.wex_cls_str)
     if other_wex is not None:
@@ -64,7 +66,7 @@ class AsWex(object):
 class valueOf(object):
   def __init__(self, prop_str, chain=None, var_access=False):
     self.chain = chain or []
-    print '{}valueOf({}, chain={})'.format('\t'*len(self.chain), prop_str, chain)
+    dprint('{}valueOf({}, chain={})'.format('\t'*len(self.chain), prop_str, chain))
     self.var_access = var_access
     self.trans_func = lambda wex_obj,self,val,world:val
 
@@ -88,12 +90,10 @@ class valueOf(object):
     return AsWex(wex_cls_str, o_chain)
 
   def __call__(self, ctx, world):
-    print 'valueOf.call({}, ctx={}, chain={}'.format(self.prop_key, ctx, self.chain)
-    for i,_func in enumerate(self.chain):
-      print '\t{}'.format(i),
+    dprint('valueOf.call({}, ctx={}, chain={})'.format(self.prop_key, ctx, self.chain))
+    for _func in self.chain:
       ctx = _func(ctx, world)
     wex_obj = ctx
-    print '\twex_obj={}'.format(wex_obj)
 
     if self.var_access:
       return getattr(wex_obj, self.prop_key)
